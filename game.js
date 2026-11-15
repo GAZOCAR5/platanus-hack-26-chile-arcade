@@ -1,39 +1,7 @@
-// Platanus Hack 26 — Santiago Edition
-// Two-player brick duel. Dash with Button 1, break the word, keep your paddle alive.
+// Terremoto — Platanus Hack 26 Santiago
+// E1: saqueo top-down en un edificio generado. Ver docs/GAME_SPEC.md.
 
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 600;
-const STORAGE_KEY = 'platanus-hack-26-standard-highscores';
-const MAX_HIGH_SCORES = 5;
-const WINNING_NAME_LENGTH = 3;
-
-const COLORS = {
-  background: 0x0b0f03,
-  frame: 0x3a3a0a,
-  accent: 0xe1ff00,
-  accentSoft: 0xa8c700,
-  p1: 0xe1ff00,
-  p2: 0xff6ec7,
-  red: 0xff7a7a,
-  white: 0xf7ffd8,
-  slate: 0xb8c48d,
-  cell: 0x1a1e05,
-  overlay: 0x0c0e02,
-  backdrop: 0x030504,
-  fieldBg: 0x0a0d0b,
-  brickA: 0x3f4a0e,
-  brickB: 0x6b7f14,
-  brickC: 0xa8c700,
-  brickD: 0xe1ff00,
-};
-
-const LETTER_GRID = [
-  ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-  ['H', 'I', 'J', 'K', 'L', 'M', 'N'],
-  ['O', 'P', 'Q', 'R', 'S', 'T', 'U'],
-  ['V', 'W', 'X', 'Y', 'Z', '.', '-'],
-  ['DEL', 'END'],
-];
+const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 14, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
 
 // DO NOT replace existing keys — they match the physical arcade cabinet wiring.
 // To add local testing shortcuts, append extra keys to any array.
@@ -64,1662 +32,376 @@ const CABINET_KEYS = {
 
 const KEYBOARD_TO_ARCADE = {};
 for (const [arcadeCode, keys] of Object.entries(CABINET_KEYS)) {
-  for (const key of keys) {
-    KEYBOARD_TO_ARCADE[normalizeIncomingKey(key)] = arcadeCode;
-  }
+  for (const key of keys) KEYBOARD_TO_ARCADE[normalizeIncomingKey(key)] = arcadeCode;
 }
 
-const config = {
-  type: Phaser.AUTO,
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
-  parent: 'game-root',
-  backgroundColor: '#0b0f03',
-  physics: {
-    default: 'arcade',
-    arcade: {
-      gravity: { y: 0 },
-      debug: false,
-    },
-  },
-  scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
-  },
-  scene: {
-    preload,
-    create,
-    update,
-  },
+// id: [nombre, espacios, categoría]  a=agua c=comida h=herramienta p=persona e=easter egg
+const ITEMS = {
+  bidon: ['Bidón de 5 L', 3, 'a'], botella: ['Botella de agua', 1, 'a'], bebida: ['Bebida de 3 L', 2, 'a'],
+  lata: ['Lata de atún', 1, 'c'], porotos: ['Porotos en tarro', 1, 'c'], tallarines: ['Tallarines', 1, 'c'],
+  marraqueta: ['Marraquetas', 1, 'c'], charqui: ['Charqui', 1, 'c'], manjar: ['Tarro de manjar', 1, 'c'],
+  sopaipillas: ['Sopaipillas frías', 1, 'c'],
+  linterna: ['Linterna', 1, 'h'], pilas: ['Pilas', 1, 'h'], radio: ['Radio a pilas', 2, 'h'],
+  botiquin: ['Botiquín', 2, 'h'], encendedor: ['Encendedor', 1, 'h'], abrelatas: ['Abrelatas', 1, 'h'],
+  cortaplumas: ['Cortaplumas', 1, 'h'], cinta: ['Cinta americana', 1, 'h'], frazada: ['Frazada', 2, 'h'],
+  mapa: ['Mapa de Santiago', 1, 'h'], gas: ['Balón de gas', 4, 'h'], mascarilla: ['Mascarilla', 1, 'h'],
+  uslero: ['Uslero de la abuela', 1, 'h'], naipe: ['Naipe para carioca', 1, 'h'], guitarra: ['Guitarra', 3, 'h'],
+  pisco: ['Pisco', 1, 'h'],
+  abuela: ['La abuela', 4, 'p'], perro: ['Quiltro', 2, 'p'], gato: ['Gato', 1, 'p'], vecina: ['Vecina copuchenta', 3, 'p'],
+  gaviota: ['Gaviota del Festival', 2, 'e'], peluca: ['Peluca de Leo Rey', 1, 'e'], terremoto: ['Terremoto (el trago)', 1, 'e'],
+  volantin: ['Volantín con hilo curado', 2, 'e'], bip: ['Tarjeta Bip con saldo', 1, 'e'], lucas: ['Billete de 20 lucas', 1, 'e'],
+  moai: ['Moai de souvenir', 3, 'e'], completo: ['Completo a medio comer', 1, 'e'], polera: ['Polera "Yo sobreviví al 27F"', 1, 'e'],
+  huaso: ['Sombrero de huaso', 1, 'e'], loteria: ['Cartón de lotería premiado', 1, 'e'], cueca: ['Pañuelo de cueca', 1, 'e'],
+  copa: ['Réplica de la Copa América', 2, 'e'],
 };
+const CAT = { a: 0x3b9cff, c: 0xff9a3b, h: 0x2ec4a0, p: 0xff6fae, e: 0xffd23b };
+const EGGS = Object.keys(ITEMS).filter((k) => ITEMS[k][2] == 'e');
+const LOOT = Object.keys(ITEMS).filter((k) => 'ach'.includes(ITEMS[k][2]));
+const COMMON = ['botella', 'lata', 'marraqueta', 'linterna', 'pilas'];
+// [nombre, color de piso, loot sesgado]
+const THEMES = [
+  ['Tu familia', 0x6b5a3c, ['bidon', 'lata', 'botiquin', 'frazada', 'abrelatas']],
+  ['Abuelita', 0x7a5a6a, ['lata', 'porotos', 'manjar', 'botiquin', 'frazada', 'naipe', 'uslero']],
+  ['Gamer', 0x3c3f6b, ['pilas', 'linterna', 'bebida', 'tallarines', 'cinta']],
+  ['Conserje', 0x5a5a4a, ['linterna', 'cinta', 'cortaplumas', 'gas', 'radio', 'abrelatas']],
+  ['Estudiante', 0x4a6b5a, ['tallarines', 'bebida', 'pisco', 'encendedor', 'marraqueta']],
+  ['Doctora', 0x6b7a8a, ['botiquin', 'mascarilla', 'botella', 'bidon']],
+  ['Tío del asado', 0x7a4a3c, ['charqui', 'encendedor', 'gas', 'pisco', 'marraqueta']],
+  ['Airbnb vacío', 0x55555f, ['botella']],
+  ['Hippie', 0x5a7a3c, ['guitarra', 'encendedor', 'porotos', 'botella', 'mapa']],
+  ['Deportista', 0x3c6b7a, ['botella', 'bidon', 'charqui', 'sopaipillas']],
+];
+// color de piso por zona: 0 pasillo, 1..10 temas, 11 bunker, 12 PH
+const FC = [0x3a3a44, ...THEMES.map((t) => t[1]), 0x4a2a2a, 0x8a7440];
+const PC = [0xff6b4a, 0x9b7bff];
+const FAMILY_FLOOR = 3;
 
-new Phaser.Game(config);
+const rnd = (n) => Math.floor(Math.random() * n);
+const pick = (a) => a[rnd(a.length)];
+const fy = (f) => (NF - 1 - f) * FG;
+const fl = (f) => (f == 0 ? '-3' : f == NF - 1 ? 'PH' : '' + f);
+const hy = (f) => 60 + (NF - 1 - f) * 38;
+const txt = (s, x, y, str, size, color) =>
+  s.add.text(x, y, str, { fontFamily: 'monospace', fontSize: size + 'px', color: color || '#fff' });
 
-function preload() {}
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: W,
+  height: H,
+  parent: 'game-root',
+  backgroundColor: '#000000',
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: W, height: H },
+  scene: { create, update },
+});
 
 function create() {
-  const scene = this;
+  const s = this;
+  s.st = { ph: 'title' };
+  s.WL = s.add.layer();
+  s.UL = s.add.layer();
+  createControls(s);
+  s.title = s.add.container(0, 0, [
+    txt(s, W / 2, 170, 'TERREMOTO', 72, '#ffd23b').setOrigin(0.5),
+    txt(s, W / 2, 250, 'Alerta sísmica: 60 segundos para bajar al bunker', 18).setOrigin(0.5),
+    txt(s, W / 2, 330, 'START1: 1 jugador   ·   START2: 2 jugadores', 20, '#2ec4a0').setOrigin(0.5),
+    txt(s, W / 2, 380, 'Joystick: moverse   B1: tomar   B2: soltar', 16, '#aaa').setOrigin(0.5),
+  ]);
+  s.UL.add(s.title);
+}
 
-  scene.state = {
-    phase: 'loading',
-    scores: { p1: 0, p2: 0 },
-    remainingBricks: 0,
-    highScores: [],
-    winner: null,
-    winnerLabel: '',
-    saveStatus: 'Loading scores...',
-    menu: { cursor: 0, cooldown: 0, lastAxis: 0 },
-    dash: {
-      p1: { activeUntil: 0, cooldownUntil: 0, dir: 0 },
-      p2: { activeUntil: 0, cooldownUntil: 0, dir: 0 },
-    },
-    nameEntry: {
-      letters: [],
-      row: 0,
-      col: 0,
-      moveCooldownUntil: 0,
-      confirmCooldownUntil: 0,
-      lastMoveVector: { x: 0, y: 0 },
-    },
+// ---------- generación del edificio ----------
+
+function genFloor(f, extra) {
+  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [];
+  const set = (x, y, v, t) => { g[y * GW + x] = v; if (t !== undefined) d[y * GW + x] = t; };
+  const open = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 0, t); };
+  const put = (k, xy) => xy && items.push({ k, f, x: xy[0] * T + T / 2, y: xy[1] * T + T / 2 });
+  const free = (x0, y0, x1, y1) => { // tile libre al azar dentro del rectángulo
+    for (let i = 0; i < 40; i++) {
+      const x = x0 + rnd(x1 - x0 + 1), y = y0 + rnd(y1 - y0 + 1);
+      if (g[y * GW + x] == 0 && !items.some((it) => it.x == x * T + T / 2 && it.y == y * T + T / 2)) return [x, y];
+    }
+  };
+  const furnish = (x0, y0, x1, y1, n, avoid) => { // muebles solo en filas de borde: el centro siempre queda libre
+    for (let i = 0; i < n; i++) {
+      const x = x0 + rnd(x1 - x0 + 1), y = rnd(2) ? y0 : y1;
+      if (!avoid.includes(x) && g[y * GW + x] == 0) set(x, y, 4);
+    }
   };
 
-  scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, COLORS.background);
-  scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, 760, 560, 0x141a04, 0.94).setStrokeStyle(4, COLORS.frame, 0.8);
-
-  createBackground(scene);
-  createHud(scene);
-  createPlayfield(scene);
-  createEndGameUi(scene);
-  createStartScreen(scene);
-  createLeaderboardScreen(scene);
-  createControlsScreen(scene);
-  createPauseScreen(scene);
-  createControls(scene);
-  showStartScreen(scene);
-
-  loadHighScores()
-    .then((highScores) => {
-      scene.state.highScores = highScores;
-      scene.state.saveStatus = 'Finish a duel to save a score.';
-      refreshLeaderboard(scene);
-      refreshStartScreenLeaderboard(scene);
-    })
-    .catch(() => {
-      scene.state.highScores = [];
-      scene.state.saveStatus = 'Storage unavailable. Match runs without saves.';
-      refreshLeaderboard(scene);
-      refreshStartScreenLeaderboard(scene);
-    });
-}
-
-function update(time, delta) {
-  const scene = this;
-  if (!scene.state) {
-    return;
+  if (f == 0) {
+    open(1, 1, 22, 13, 11);
+    set(1, 6, 2);
+    labels.push([4, 2, 'BUNKER -3: aquí se vacía la mochila']);
+    return { g, d, items, labels };
   }
 
-  const phase = scene.state.phase;
+  open(1, 6, 48, 8, 0);
+  if (f < NF - 1) set(1, 6, 2);
+  set(1, 8, 3);
 
-  if (phase === 'start') {
-    handleStartMenu(scene, time);
-    return;
+  if (f == NF - 1) {
+    open(4, 1, 48, 13, 12);
+    open(1, 6, 4, 8, 12);
+    for (let y = 4; y <= 10; y++) for (let x = 22; x <= 32; x++) set(x, y, 5);
+    furnish(5, 1, 47, 13, 14, []);
+    for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
+    for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
+    labels.push([6, 2, 'PH · Mansión del cuico']);
+    return { g, d, items, labels };
   }
 
-  if (phase === 'leaderboard') {
-    if (consumeAnyPressedControl(scene, ['START1', 'START2', 'P1_1', 'P2_1', 'P1_2', 'P2_2'])) {
-      scene.leaderScreen.container.setVisible(false);
-      showStartScreen(scene);
-    }
-    return;
-  }
-
-  if (phase === 'controls') {
-    if (consumeAnyPressedControl(scene, ['START1', 'START2', 'P1_1', 'P2_1', 'P1_2', 'P2_2'])) {
-      scene.controlsScreen.container.setVisible(false);
-      showStartScreen(scene);
-    }
-    return;
-  }
-
-  if (phase === 'playing') {
-    updatePaddles(scene, delta, time);
-    updateBallGhostStates(scene);
-    updateBallTrails(scene, time);
-    checkBallEscape(scene);
-    if (consumeAnyPressedControl(scene, ['START1', 'START2'])) {
-      pauseMatch(scene);
-    }
-    return;
-  }
-
-  if (phase === 'paused') {
-    if (consumeAnyPressedControl(scene, ['START1', 'START2'])) {
-      resumeMatch(scene);
-    }
-    return;
-  }
-
-  if (phase === 'gameover') {
-    handleNameEntry(scene, time);
-    return;
-  }
-
-  if (phase === 'saved') {
-    if (consumeAnyPressedControl(scene, ['START1', 'START2', 'P1_1', 'P2_1', 'P1_2', 'P2_2'])) {
-      returnToStart(scene);
+  let n = 0;
+  for (const [y0, y1, dr] of [[1, 4, 5], [10, 13, 9]]) {
+    for (let x = 5; x <= 41; n++) {
+      const x1 = Math.min(x + 8 + rnd(5), 47);
+      if (x1 - x < 6) break;
+      const family = f == FAMILY_FLOOR && n == 0, ti = family ? 0 : 1 + rnd(THEMES.length - 1), th = THEMES[ti];
+      open(x, y0, x1, y1, ti + 1);
+      const sx = x + 3 + rnd(x1 - x - 5);
+      for (let y = y0; y <= y1; y++) set(sx, y, 1);
+      set(sx, y0 + 1 + rnd(2), 0, ti + 1);
+      let dx;
+      do dx = x + 1 + rnd(x1 - x - 1); while (dx == sx);
+      set(dx, dr, 0, ti + 1);
+      furnish(x, y0, x1, y1, 3, [sx, dx]);
+      const k = family ? 3 : ti == 7 ? 1 : 2 + rnd(3);
+      for (let i = 0; i < k; i++) put(Math.random() < 0.6 ? pick(th[2]) : pick(COMMON), free(x, y0, x1, y1));
+      if (family) { put('abuela', free(x, y0, x1, y1)); put('perro', free(x, y0, x1, y1)); }
+      if (Math.random() < (f / NF) * 0.5) put(pick(EGGS), free(x, y0, x1, y1));
+      if (n == 0) for (const p of extra[f] || []) put(p, free(x, y0, x1, y1));
+      labels.push([dx, dr == 5 ? 4 : 10, fl(f) + 'ABCDEFGH'[n] + ' ' + th[0]]);
+      x = x1 + 2;
     }
   }
+  return { g, d, items, labels };
 }
 
-function createBackground(scene) {
-  scene.add.rectangle(
-    GAME_WIDTH / 2,
-    GAME_HEIGHT / 2,
-    700,
-    450,
-    COLORS.fieldBg,
-    0.18,
-  );
-}
-
-function createHud(scene) {
-  scene.hud = {};
-
-  scene.hud.title = scene.add
-    .text(GAME_WIDTH / 2, 20, 'PLATANUS HACK 26 BRICKS', {
-      fontFamily: 'monospace',
-      fontSize: '22px',
-      color: '#f7fbff',
-      fontStyle: 'bold',
-      align: 'center',
-    })
-    .setOrigin(0.5, 0);
-
-  scene.hud.subtitle = scene.add
-    .text(
-      GAME_WIDTH / 2,
-      48,
-      '',
-      {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#a8ad8a',
-        align: 'center',
-      },
-    )
-    .setOrigin(0.5, 0);
-
-  scene.hud.p1Score = scene.add
-    .text(65, 72, 'P1 00', {
-      fontFamily: 'monospace',
-      fontSize: '28px',
-      color: '#e1ff00',
-      fontStyle: 'bold',
-    })
-    .setOrigin(0, 0.5);
-
-  scene.hud.p2Score = scene.add
-    .text(GAME_WIDTH - 65, 72, 'P2 00', {
-      fontFamily: 'monospace',
-      fontSize: '28px',
-      color: '#ff6ec7',
-      fontStyle: 'bold',
-    })
-    .setOrigin(1, 0.5);
-
-  scene.hud.remaining = scene.add
-    .text(GAME_WIDTH / 2, 72, 'BRICKS 000', {
-      fontFamily: 'monospace',
-      fontSize: '18px',
-      color: '#ffd84d',
-      fontStyle: 'bold',
-    })
-    .setOrigin(0.5);
-
-  scene.hud.status = scene.add
-    .text(GAME_WIDTH / 2, GAME_HEIGHT - 24, '', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
-      color: '#f7fbff',
-      align: 'center',
-    })
-    .setOrigin(0.5);
-
-  scene.hud.scoreColors = {
-    p1: '#e1ff00',
-    p2: '#ff6ec7',
-    penalty: '#ff7a7a',
-  };
-}
-
-function createPlayfield(scene) {
-  scene.playfield = {};
-  const paddleWidth = 112;
-  const paddleHeight = 10;
-  const topBounceLineY = 118;
-  const bottomBounceLineY = GAME_HEIGHT - 72;
-  const wallThickness = 8;
-  const wallGap = 22;
-  const topPaddleY = topBounceLineY - paddleHeight / 2;
-  const bottomPaddleY = bottomBounceLineY + paddleHeight / 2;
-  const topWallY = topBounceLineY - wallGap - wallThickness / 2;
-  const bottomWallY = bottomBounceLineY + wallGap + wallThickness / 2;
-
-  // Walls span full width/height so corners are sealed — balls cannot escape through gaps.
-  scene.playfield.leftWall = scene.add.rectangle(38, GAME_HEIGHT / 2, 14, GAME_HEIGHT, COLORS.frame, 0);
-  scene.playfield.rightWall = scene.add.rectangle(GAME_WIDTH - 38, GAME_HEIGHT / 2, 14, GAME_HEIGHT, COLORS.frame, 0);
-  scene.playfield.topWall = scene.add.rectangle(
-    GAME_WIDTH / 2,
-    topWallY,
-    GAME_WIDTH,
-    wallThickness,
-    COLORS.frame,
-    0,
-  );
-  scene.playfield.bottomWall = scene.add.rectangle(
-    GAME_WIDTH / 2,
-    bottomWallY,
-    GAME_WIDTH,
-    wallThickness,
-    COLORS.frame,
-    0,
-  );
-
-  scene.physics.add.existing(scene.playfield.leftWall, true);
-  scene.physics.add.existing(scene.playfield.rightWall, true);
-  scene.physics.add.existing(scene.playfield.topWall, true);
-  scene.physics.add.existing(scene.playfield.bottomWall, true);
-
-  scene.add.rectangle(
-    GAME_WIDTH / 2,
-    topBounceLineY,
-    700,
-    1,
-    COLORS.frame,
-    0.55,
-  );
-  scene.add.rectangle(
-    GAME_WIDTH / 2,
-    bottomBounceLineY,
-    700,
-    1,
-    COLORS.frame,
-    0.55,
-  );
-
-  scene.playfield.p1Paddle = scene.add.rectangle(
-    GAME_WIDTH / 2,
-    topPaddleY,
-    paddleWidth,
-    paddleHeight,
-    COLORS.p1,
-    1,
-  );
-  scene.playfield.p2Paddle = scene.add.rectangle(
-    GAME_WIDTH / 2,
-    bottomPaddleY,
-    paddleWidth,
-    paddleHeight,
-    COLORS.p2,
-    1,
-  );
-
-  scene.physics.add.existing(scene.playfield.p1Paddle);
-  scene.physics.add.existing(scene.playfield.p2Paddle);
-
-  configurePaddleBody(scene.playfield.p1Paddle.body);
-  configurePaddleBody(scene.playfield.p2Paddle.body);
-
-  scene.playfield.balls = [
-    createBall(scene, GAME_WIDTH / 2 - 120, 170, COLORS.white, 'p1'),
-    createBall(scene, GAME_WIDTH / 2 + 120, GAME_HEIGHT - 170, COLORS.white, 'p2'),
-  ];
-
-  scene.playfield.bricks = scene.physics.add.staticGroup();
-  scene.playfield.ballTrails = scene.add.group();
-
-  for (const ball of scene.playfield.balls) {
-    scene.physics.add.collider(ball, scene.playfield.leftWall);
-    scene.physics.add.collider(ball, scene.playfield.rightWall);
-    scene.physics.add.collider(ball, scene.playfield.topWall);
-    scene.physics.add.collider(ball, scene.playfield.bottomWall);
-    scene.physics.add.collider(
-      ball,
-      scene.playfield.p1Paddle,
-      () => handleBallPaddleCollision(scene, ball, scene.playfield.p1Paddle, 'p1'),
-      () => canBallCollideWithPaddle(ball, 'p1'),
-      scene,
-    );
-    scene.physics.add.collider(
-      ball,
-      scene.playfield.p2Paddle,
-      () => handleBallPaddleCollision(scene, ball, scene.playfield.p2Paddle, 'p2'),
-      () => canBallCollideWithPaddle(ball, 'p2'),
-      scene,
-    );
-    scene.physics.add.collider(
-      ball,
-      scene.playfield.bricks,
-      (_, brick) => handleBallBrickCollision(scene, ball, brick),
-      undefined,
-      scene,
-    );
+// Autocheck: cada objeto y cada escalera se alcanza desde la escalera de llegada.
+function reachableAll(F) {
+  const start = F.g[8 * GW + 1] == 3 ? 8 * GW + 1 : 6 * GW + 1, seen = new Uint8Array(GW * GH), q = [start];
+  seen[start] = 1;
+  while (q.length) {
+    const i = q.pop();
+    for (const j of [i - 1, i + 1, i - GW, i + GW]) if (!seen[j] && F.g[j] != 1 && F.g[j] < 4) { seen[j] = 1; q.push(j); }
   }
+  return F.items.every((it) => seen[Math.floor(it.y / T) * GW + Math.floor(it.x / T)]) && [6, 8].every((r) => seen[r * GW + 1] || F.g[r * GW + 1] == 1);
 }
 
-function createEndGameUi(scene) {
-  scene.endGame = {};
-
-  scene.endGame.container = scene.add.container(0, 0);
-  scene.endGame.container.setDepth(20);
-  scene.endGame.container.setVisible(false);
-
-  const backdrop = scene.add.rectangle(
-    GAME_WIDTH / 2,
-    GAME_HEIGHT / 2,
-    GAME_WIDTH,
-    GAME_HEIGHT,
-    COLORS.backdrop,
-    0.98,
-  );
-  scene.endGame.container.add(backdrop);
-
-  scene.endGame.title = scene.add
-    .text(GAME_WIDTH / 2, 88, 'GAME OVER', {
-      fontFamily: 'monospace',
-      fontSize: '30px',
-      color: '#f7ffd8',
-      fontStyle: 'bold',
-    })
-    .setOrigin(0.5);
-
-  scene.endGame.summary = scene.add
-    .text(GAME_WIDTH / 2, 126, '', {
-      fontFamily: 'monospace',
-      fontSize: '22px',
-      color: '#e1ff00',
-      align: 'center',
-    })
-    .setOrigin(0.5);
-
-  scene.endGame.nameLabel = scene.add
-    .text(GAME_WIDTH / 2, 172, '', {
-      fontFamily: 'monospace',
-      fontSize: '13px',
-      color: '#a8ad8a',
-      align: 'center',
-    })
-    .setOrigin(0.5);
-
-  scene.endGame.nameValue = scene.add
-    .text(GAME_WIDTH / 2, 208, '___', {
-      fontFamily: 'monospace',
-      fontSize: '36px',
-      color: '#ff6ec7',
-      fontStyle: 'bold',
-      align: 'center',
-      letterSpacing: 10,
-    })
-    .setOrigin(0.5);
-
-  scene.endGame.instructions = scene.add
-    .text(
-      GAME_WIDTH / 2,
-      242,
-      'MOVE  PICK',
-      {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: '#a8ad8a',
-        align: 'center',
-      },
-    )
-    .setOrigin(0.5);
-
-  scene.endGame.leaderboardTitle = scene.add
-    .text(GAME_WIDTH / 2, 286, 'SCOREBOARD', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
-      color: '#e1ff00',
-      fontStyle: 'bold',
-      align: 'center',
-    })
-    .setOrigin(0.5);
-
-  scene.endGame.gridLabels = [];
-
-  for (let row = 0; row < LETTER_GRID.length; row += 1) {
-    const rowValues = LETTER_GRID[row];
-    const rowWidth = rowValues.length * 56;
-    for (let col = 0; col < rowValues.length; col += 1) {
-      const value = rowValues[col];
-      const cellX = GAME_WIDTH / 2 - rowWidth / 2 + 28 + col * 56;
-      const cellY = 430 + row * 28;
-
-      const cell = scene.add.rectangle(cellX, cellY, value.length > 1 ? 64 : 42, 24, COLORS.cell, 0.95);
-      cell.setStrokeStyle(2, COLORS.frame, 0.8);
-
-      const label = scene.add
-        .text(cellX, cellY, value, {
-          fontFamily: 'monospace',
-          fontSize: value.length > 1 ? '14px' : '18px',
-          color: '#f7fbff',
-          fontStyle: 'bold',
-          align: 'center',
-        })
-        .setOrigin(0.5);
-
-      scene.endGame.gridLabels.push({ cell, label, row, col, value });
-      scene.endGame.container.add(cell);
-      scene.endGame.container.add(label);
+function drawFloor(s, f, F) {
+  const gr = s.make.graphics({ add: false });
+  gr.fillStyle(0x15151c).fillRect(0, 0, GW * T, GH * T);
+  for (let i = 0; i < GW * GH; i++) {
+    const c = F.g[i], x = (i % GW) * T, y = Math.floor(i / GW) * T;
+    if (c == 1) continue;
+    gr.fillStyle(c == 4 ? 0x5a4636 : c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
+    gr.lineStyle(1, 0x000000, 0.15).strokeRect(x, y, T, T);
+    if (c == 2 || c == 3) {
+      gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(0xffffff);
+      c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
     }
   }
-
-  scene.endGame.saveStatus = scene.add
-    .text(GAME_WIDTH / 2, 590, '', {
-      fontFamily: 'monospace',
-      fontSize: '11px',
-      color: '#e1ff00',
-      align: 'center',
-    })
-    .setOrigin(0.5);
-
-  scene.endGame.leaderboard = scene.add
-    .text(GAME_WIDTH / 2, 308, '', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#f7ffd8',
-      align: 'center',
-      lineSpacing: 4,
-    })
-    .setOrigin(0.5, 0);
-
-  scene.endGame.container.add(scene.endGame.title);
-  scene.endGame.container.add(scene.endGame.summary);
-  scene.endGame.container.add(scene.endGame.nameLabel);
-  scene.endGame.container.add(scene.endGame.nameValue);
-  scene.endGame.container.add(scene.endGame.instructions);
-  scene.endGame.container.add(scene.endGame.leaderboardTitle);
-  scene.endGame.container.add(scene.endGame.leaderboard);
-  scene.endGame.container.add(scene.endGame.saveStatus);
+  gr.generateTexture('f' + f, GW * T, GH * T);
+  gr.destroy();
+  s.WL.add(s.add.image(0, fy(f), 'f' + f).setOrigin(0));
+  for (const [x, y, l] of F.labels) s.WL.add(txt(s, x * T, fy(f) + y * T + 8, l, 11, '#ffffffaa'));
 }
+
+// ---------- partida ----------
+
+function start(s, np) {
+  const st = s.st;
+  s.title.setVisible(false);
+  const extra = {};
+  (extra[2 + rnd(9)] ||= []).push('gato');
+  (extra[2 + rnd(9)] ||= []).push('vecina');
+  st.floors = [];
+  for (let f = 0; f < NF; f++) {
+    let F;
+    do F = genFloor(f, extra); while (!reachableAll(F));
+    st.floors.push(F);
+    drawFloor(s, f, F);
+  }
+  st.items = st.floors.flatMap((F) => F.items);
+  for (const it of st.items) {
+    const [, , c] = ITEMS[it.k];
+    it.o = c == 'p' ? s.add.circle(0, 0, 9, CAT[c]) : s.add.rectangle(0, 0, 16, 16, CAT[c]);
+    it.o.setStrokeStyle(2, 0x000000).setPosition(it.x, it.y + fy(it.f));
+    s.WL.add(it.o);
+  }
+
+  // HUD lateral: el edificio en corte
+  s.UL.add(s.add.rectangle(720, 0, 80, H, 0x0d0d12).setOrigin(0));
+  st.timer = txt(s, 760, 8, '60', 30, '#ffd23b').setOrigin(0.5, 0);
+  s.UL.add(st.timer);
+  for (let f = 0; f < NF; f++) {
+    s.UL.add(s.add.rectangle(724, hy(f), 72, 34, f == 0 ? 0x6b1d1d : f == NF - 1 ? 0x8a6d1a : 0x2a2a36).setOrigin(0));
+    s.UL.add(txt(s, 727, hy(f) + 2, fl(f), 10, '#ffffff88'));
+  }
+  st.bunker = [];
+  st.msg = txt(s, 360, 40, '', 16, '#ffd23b').setOrigin(0.5);
+  s.UL.add(st.msg);
+
+  const F3 = st.floors[FAMILY_FLOOR];
+  st.P = [];
+  for (let i = 0; i < np; i++) {
+    let x, y;
+    do { x = 6 + rnd(6); y = 2 + rnd(2); } while (F3.g[y * GW + x] != 0);
+    const o = s.add.container(0, 0, [
+      s.add.circle(0, 0, 11, PC[i]).setStrokeStyle(2, 0x111111),
+      s.add.circle(-4, -3, 3, 0xffffff),
+      s.add.circle(4, -3, 3, 0xffffff),
+    ]);
+    const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
+    const p = {
+      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o,
+      dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, 0xffffff),
+      lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa'),
+      bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor('#000000aa'),
+    };
+    s.WL.add([o, p.lt]);
+    s.UL.add([p.dot, p.bt]);
+    const cam = i ? s.cameras.add(vx, 0, vw, H) : s.cameras.main.setViewport(vx, 0, vw, H);
+    cam.startFollow(o, true, 0.12, 0.12).ignore(s.UL);
+    st.P.push(p);
+  }
+  if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, 0xffffff).setOrigin(0));
+  s.cameras.add(0, 0, W, H).ignore(s.WL);
+  st.left = LOOT_S;
+  st.ph = 'loot';
+}
+
+const used = (p) => p.bag.reduce((a, it) => a + ITEMS[it.k][1], 0);
+const tileAt = (f, x, y) => {
+  const tx = Math.floor(x / T), ty = Math.floor(y / T);
+  return tx < 0 || ty < 0 || tx >= GW || ty >= GH ? 1 : s_floors[f].g[ty * GW + tx];
+};
+let s_floors; // shortcut: referencia global al edificio actual, una sola escena
+const blocked = (f, x, y) => [[-10, -10], [10, -10], [-10, 10], [10, 10]].some(([a, b]) => {
+  const c = tileAt(f, x + a, y + b);
+  return c == 1 || c >= 4;
+});
+
+function nearest(st, p, r) {
+  let best, bd = r;
+  for (const it of st.items) {
+    if (it.taken || it.f != p.f) continue;
+    const dd = Math.hypot(it.x - p.x, it.y - p.y);
+    if (dd < bd) { bd = dd; best = it; }
+  }
+  return best;
+}
+
+function say(st, m) {
+  st.msg.setText(m);
+  st.msgT = 1500;
+}
+
+function stepPlayer(s, p, t, dt) {
+  const st = s.st, h = (c) => (s.ctl.held[p.k + c] ? 1 : 0);
+  let vx = h('R') - h('L'), vy = h('D') - h('U');
+  if (t < p.lock) vx = vy = 0;
+  const m = Math.hypot(vx, vy) || 1, sp = ((170 - 12 * used(p)) * dt) / 1000;
+  if (!blocked(p.f, p.x + (vx / m) * sp, p.y)) p.x += (vx / m) * sp;
+  if (!blocked(p.f, p.x, p.y + (vy / m) * sp)) p.y += (vy / m) * sp;
+
+  const c = tileAt(p.f, p.x, p.y);
+  if ((c == 2 || c == 3) && t >= p.lock) {
+    p.f += c == 2 ? 1 : -1;
+    p.x = 2 * T + T / 2;
+    p.y = (c == 2 ? 8 : 6) * T + T / 2;
+    p.lock = t + 450;
+  }
+  if (p.f == 0 && p.bag.length) {
+    say(st, 'Al bunker: ' + p.bag.map((it) => ITEMS[it.k][0]).join(', '));
+    st.bunker.push(...p.bag);
+    p.bag = [];
+  }
+
+  const near = nearest(st, p, 30);
+  if (pressed(s, p.k + '1') && near) {
+    if (used(p) + ITEMS[near.k][1] > SLOTS) say(st, 'Mochila llena: suelta algo (B2) o baja al bunker');
+    else { near.taken = 1; near.o.setVisible(false); p.bag.push(near); }
+  }
+  if (pressed(s, p.k + '2') && p.bag.length) {
+    const it = p.bag.pop();
+    Object.assign(it, { taken: 0, f: p.f, x: p.x, y: p.y });
+    it.o.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
+  }
+
+  const wy = p.y + fy(p.f), show = nearest(st, p, 40);
+  p.o.setPosition(p.x, wy);
+  p.lt.setVisible(!!show);
+  if (show) p.lt.setText(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
+  p.dot.y = hy(p.f) + 17;
+  p.bt.setText(p.k.slice(0, 2) + ' ' + used(p) + '/' + SLOTS + ' ' + p.bag.map((it) => ITEMS[it.k][0]).join(', '));
+}
+
+function endLoot(s) {
+  const st = s.st;
+  st.ph = 'res';
+  for (const p of st.P) if (p.f != 0) p.alive = 0;
+  const count = {};
+  for (const it of st.bunker) count[it.k] = (count[it.k] || 0) + 1;
+  const list = Object.keys(count).map((k) => ITEMS[k][0] + (count[k] > 1 ? ' x' + count[k] : '')).join(' · ') || 'nada';
+  const eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
+  s.UL.add(s.add.rectangle(0, 0, W, H, 0x000000, 0.88).setOrigin(0));
+  s.UL.add(txt(s, W / 2, 90, 'COMIENZA EL APOCALIPSIS', 34, '#ff6b4a').setOrigin(0.5));
+  s.UL.add(txt(s, W / 2, 150, st.P.map((p, i) => 'P' + (i + 1) + (p.alive ? ' llegó al bunker' : ' quedó afuera')).join('   ·   '), 18).setOrigin(0.5));
+  s.UL.add(txt(s, 60, 200, 'En el bunker: ' + list, 15).setWordWrapWidth(680));
+  s.UL.add(txt(s, W / 2, 500, 'Easter eggs: ' + eggs + '   ·   START para volver', 18, '#ffd23b').setOrigin(0.5));
+}
+
+function update(t, dt) {
+  const s = this, st = s.st;
+  dt = Math.min(dt, 50);
+  if (st.ph == 'title') {
+    if (pressed(s, 'START1')) start(s, 1);
+    else if (pressed(s, 'START2')) start(s, 2);
+  } else if (st.ph == 'loot') {
+    s_floors = st.floors;
+    st.left -= dt / 1000;
+    for (const p of st.P) stepPlayer(s, p, t, dt);
+    st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : '#ffd23b');
+    if ((st.msgT -= dt) <= 0) st.msg.setText('');
+    const inBunker = st.P.every((p) => p.f == 0);
+    if (inBunker && st.P.length && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
+    if (st.left <= 0) endLoot(s);
+  } else if (st.ph == 'res' && (pressed(s, 'START1') || pressed(s, 'START2'))) {
+    s.scene.restart();
+  }
+  s.ctl.pressed = Object.create(null);
+}
+
+// ---------- controles (del starter) ----------
 
 function createControls(scene) {
-  scene.controls = {
-    held: Object.create(null),
-    pressed: Object.create(null),
-  };
-
+  scene.ctl = { held: Object.create(null), pressed: Object.create(null) };
   const onKeyDown = (event) => {
-    const key = normalizeIncomingKey(event.key);
-    if (!key) {
-      return;
-    }
-
-    const arcadeCode = KEYBOARD_TO_ARCADE[key];
-    if (!arcadeCode) {
-      return;
-    }
-
-    if (!scene.controls.held[arcadeCode]) {
-      scene.controls.pressed[arcadeCode] = true;
-    }
-    scene.controls.held[arcadeCode] = true;
+    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
+    if (!code) return;
+    if (!scene.ctl.held[code]) scene.ctl.pressed[code] = true;
+    scene.ctl.held[code] = true;
   };
-
   const onKeyUp = (event) => {
-    const key = normalizeIncomingKey(event.key);
-    if (!key) {
-      return;
-    }
-
-    const arcadeCode = KEYBOARD_TO_ARCADE[key];
-    if (!arcadeCode) {
-      return;
-    }
-
-    scene.controls.held[arcadeCode] = false;
+    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
+    if (code) scene.ctl.held[code] = false;
   };
-
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
-
   scene.events.once('shutdown', () => {
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('keyup', onKeyUp);
   });
 }
 
-function startMatch(scene) {
-  scene.physics.resume();
-  scene.startScreen.container.setVisible(false);
-  buildTextBricks(scene);
-  resetBalls(scene);
-  scene.state.scores = { p1: 0, p2: 0 };
-  refreshHud(scene);
-  scene.state.phase = 'playing';
-  scene.hud.status.setText('');
-}
-
-function createStartScreen(scene) {
-  scene.startScreen = {};
-  const c = scene.add.container(0, 0);
-  c.setDepth(15);
-  scene.startScreen.container = c;
-
-  c.add(scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, COLORS.overlay, 0.97));
-
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, 88, 'PLATANUS HACK 26', {
-        fontFamily: 'monospace', fontSize: '16px', color: '#a8c700',
-      })
-      .setOrigin(0.5),
-  );
-  const titleMain = scene.add
-    .text(GAME_WIDTH / 2, 150, 'SANTIAGO EDITION', {
-      fontFamily: 'monospace', fontSize: '38px', color: '#e1ff00', fontStyle: 'bold',
-    })
-    .setOrigin(0.5);
-  c.add(titleMain);
-  scene.tweens.add({
-    targets: titleMain,
-    scale: 1.025,
-    alpha: 0.88,
-    duration: 1100,
-    yoyo: true,
-    repeat: -1,
-    ease: 'Sine.easeInOut',
-  });
-
-  scene.startScreen.buttons = [];
-  const buttonLabels = ['PLAY', 'LEADERBOARD', 'CONTROLS'];
-  for (let i = 0; i < buttonLabels.length; i += 1) {
-    const y = 232 + i * 50;
-    const bg = scene.add.rectangle(GAME_WIDTH / 2, y, 280, 42, COLORS.cell, 0.95);
-    bg.setStrokeStyle(2, COLORS.frame, 0.8);
-    const label = scene.add
-      .text(GAME_WIDTH / 2, y, buttonLabels[i], {
-        fontFamily: 'monospace', fontSize: '22px', color: '#f7ffd8', fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-    c.add(bg);
-    c.add(label);
-    scene.startScreen.buttons.push({ bg, label });
-  }
-
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, 380, 'SCOREBOARD', {
-        fontFamily: 'monospace', fontSize: '14px', color: '#e1ff00', fontStyle: 'bold',
-      })
-      .setOrigin(0.5),
-  );
-  scene.startScreen.leaderboard = scene.add
-    .text(GAME_WIDTH / 2, 402, '', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#f7ffd8', align: 'center', lineSpacing: 4,
-    })
-    .setOrigin(0.5, 0);
-  c.add(scene.startScreen.leaderboard);
-
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 22, 'MOVE ↕   CONFIRM B / START', {
-        fontFamily: 'monospace', fontSize: '11px', color: '#6f7a4a',
-      })
-      .setOrigin(0.5),
-  );
-
-  c.setVisible(false);
-}
-
-function showStartScreen(scene) {
-  scene.state.phase = 'start';
-  scene.state.menu = { cursor: 0, cooldown: 0, lastAxis: 0 };
-  refreshStartScreenLeaderboard(scene);
-  updateStartMenuHighlight(scene);
-  scene.startScreen.container.setVisible(true);
-}
-
-function createLeaderboardScreen(scene) {
-  scene.leaderScreen = {};
-  const c = scene.add.container(0, 0);
-  c.setDepth(16);
-  scene.leaderScreen.container = c;
-
-  c.add(scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, COLORS.overlay, 0.98));
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, 90, 'LEADERBOARD', {
-        fontFamily: 'monospace', fontSize: '30px', color: '#e1ff00', fontStyle: 'bold',
-      })
-      .setOrigin(0.5),
-  );
-
-  scene.leaderScreen.list = scene.add
-    .text(GAME_WIDTH / 2, 160, '', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#f7ffd8',
-      align: 'center', lineSpacing: 12,
-    })
-    .setOrigin(0.5, 0);
-  c.add(scene.leaderScreen.list);
-
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 28, 'PRESS START TO GO BACK', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#6f7a4a',
-      })
-      .setOrigin(0.5),
-  );
-
-  c.setVisible(false);
-}
-
-function createControlsScreen(scene) {
-  scene.controlsScreen = {};
-  const c = scene.add.container(0, 0);
-  c.setDepth(16);
-  scene.controlsScreen.container = c;
-
-  c.add(scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, COLORS.overlay, 0.98));
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, 110, 'CONTROLS', {
-        fontFamily: 'monospace', fontSize: '30px', color: '#e1ff00', fontStyle: 'bold',
-      })
-      .setOrigin(0.5),
-  );
-
-  const lines = [
-    'P1   MOVE  A / D',
-    'P1   DASH  U',
-    '',
-    'P2   MOVE  ← / →',
-    'P2   DASH  R',
-    '',
-    'PAUSE      ENTER',
-  ];
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, 200, lines.join('\n'), {
-        fontFamily: 'monospace', fontSize: '18px', color: '#f7ffd8',
-        align: 'center', lineSpacing: 8,
-      })
-      .setOrigin(0.5, 0),
-  );
-
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 28, 'PRESS START TO GO BACK', {
-        fontFamily: 'monospace', fontSize: '12px', color: '#6f7a4a',
-      })
-      .setOrigin(0.5),
-  );
-
-  c.setVisible(false);
-}
-
-function showControlsScreen(scene) {
-  scene.startScreen.container.setVisible(false);
-  scene.controlsScreen.container.setVisible(true);
-  scene.state.phase = 'controls';
-}
-
-function showLeaderboardScreen(scene) {
-  const lines = scene.state.highScores.length
-    ? scene.state.highScores.map((e, i) =>
-        `${String(i + 1).padStart(2, '0')}  ${e.name.padEnd(3, ' ')}  ${String(e.score).padStart(3, ' ')}  ${e.winner}`,
-      )
-    : ['NO SAVED SCORES YET'];
-  scene.leaderScreen.list.setText(lines.join('\n'));
-  scene.startScreen.container.setVisible(false);
-  scene.leaderScreen.container.setVisible(true);
-  scene.state.phase = 'leaderboard';
-}
-
-function refreshStartScreenLeaderboard(scene) {
-  const lines = scene.state.highScores.length
-    ? scene.state.highScores.map((e, i) =>
-        `${String(i + 1).padStart(2, '0')} ${e.name.padEnd(3, ' ')} ${String(e.score).padStart(2, '0')} ${e.winner}`,
-      )
-    : ['NO SAVED SCORES YET'];
-  scene.startScreen.leaderboard.setText(lines.join('\n'));
-}
-
-function updateStartMenuHighlight(scene) {
-  const cursor = scene.state.menu.cursor;
-  scene.startScreen.buttons.forEach(({ bg, label }, i) => {
-    const active = i === cursor;
-    bg.setFillStyle(active ? COLORS.accent : COLORS.cell, active ? 1 : 0.95);
-    bg.setStrokeStyle(2, active ? COLORS.white : COLORS.frame, active ? 1 : 0.8);
-    label.setColor(active ? '#04110b' : '#f7ffd8');
-  });
-}
-
-function handleStartMenu(scene, time) {
-  const menu = scene.state.menu;
-  const axisY = getVerticalMenuAxis(scene.controls);
-
-  if (time >= menu.cooldown && axisY !== 0 && menu.lastAxis !== axisY) {
-    menu.cursor = Phaser.Math.Wrap(menu.cursor + axisY, 0, scene.startScreen.buttons.length);
-    menu.cooldown = time + 160;
-    updateStartMenuHighlight(scene);
-    playSound(scene, 'click');
-  }
-  if (axisY === 0) {
-    menu.lastAxis = 0;
-  } else {
-    menu.lastAxis = axisY;
-  }
-
-  if (consumeAnyPressedControl(scene, ['P1_1', 'P2_1', 'P1_2', 'P2_2', 'START1', 'START2'])) {
-    playSound(scene, 'select');
-    startAmbientMusic(scene);
-    if (menu.cursor === 0) {
-      startMatch(scene);
-    } else if (menu.cursor === 1) {
-      showLeaderboardScreen(scene);
-    } else {
-      showControlsScreen(scene);
-    }
-  }
-}
-
-function createPauseScreen(scene) {
-  scene.pauseScreen = {};
-  const c = scene.add.container(0, 0);
-  c.setDepth(25);
-  scene.pauseScreen.container = c;
-
-  c.add(scene.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, COLORS.overlay, 0.82));
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 28, 'PAUSED', {
-        fontFamily: 'monospace', fontSize: '52px', color: '#e1ff00', fontStyle: 'bold',
-      })
-      .setOrigin(0.5),
-  );
-  c.add(
-    scene.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 34, 'PRESS START TO RESUME', {
-        fontFamily: 'monospace', fontSize: '16px', color: '#a8ad8a',
-      })
-      .setOrigin(0.5),
-  );
-
-  c.setVisible(false);
-}
-
-function pauseMatch(scene) {
-  scene.state.phase = 'paused';
-  scene.physics.pause();
-  scene.pauseScreen.container.setVisible(true);
-}
-
-function resumeMatch(scene) {
-  scene.pauseScreen.container.setVisible(false);
-  scene.physics.resume();
-  scene.state.phase = 'playing';
-}
-
-function returnToStart(scene) {
-  scene.state.winner = null;
-  scene.state.nameEntry.letters = [];
-  scene.endGame.container.setVisible(false);
-  refreshLeaderboard(scene);
-  showStartScreen(scene);
-}
-
-function configurePaddleBody(body) {
-  body.setImmovable(true);
-  body.allowGravity = false;
-  body.setCollideWorldBounds(false);
-}
-
-function createBall(scene, x, y, color, startingOwner) {
-  const ball = scene.add.circle(x, y, 7, color, 1);
-  scene.physics.add.existing(ball);
-
-  ball.body.setCircle(7);
-  ball.body.setBounce(1, 1);
-  ball.body.setCollideWorldBounds(false);
-  ball.body.setAllowGravity(false);
-  ball.body.setDrag(0, 0);
-  ball.body.setMaxVelocity(340, 340);
-  ball.glowColor = color;
-  ball.lastTouchedBy = startingOwner;
-  ball.ghostFor = { p1: false, p2: false };
-  ball.previousY = y;
-
-  return ball;
-}
-
-function buildTextBricks(scene) {
-  scene.playfield.bricks.clear(true, true);
-
-  // SANTIAGO in a 4×7 pixel font, centered across the cabinet playfield. Eight letters
-  // need 39 columns (4 each plus a gap): at 17 px a column they span 663 px, inside the
-  // same 680 px field the 20 px columns of shorter words used.
-  const WORD = 'SANTIAGO';
-  const CELL = 17;
-  const letters = {
-    S: ['0111', '1000', '1000', '0110', '0001', '0001', '1110'],
-    A: ['0110', '1001', '1001', '1111', '1001', '1001', '1001'],
-    N: ['1001', '1101', '1101', '1011', '1011', '1001', '1001'],
-    T: ['1111', '0110', '0110', '0110', '0110', '0110', '0110'],
-    I: ['1111', '0110', '0110', '0110', '0110', '0110', '1111'],
-    G: ['0111', '1000', '1000', '1011', '1001', '1001', '0111'],
-    O: ['0110', '1001', '1001', '1001', '1001', '1001', '0110'],
-  };
-  const columns = WORD.length * 5 - 1;
-  const left = GAME_WIDTH / 2 - (columns * CELL) / 2 + CELL / 2;
-  const brickData = [];
-  for (let letter = 0; letter < WORD.length; letter++) {
-    const pixels = letters[WORD[letter]];
-    for (let row = 0; row < 7; row++) {
-      for (let col = 0; col < 4; col++) {
-        if (pixels[row][col] === '1') {
-          brickData.push([left + (letter * 5 + col) * CELL, 257 + row * 12, (letter + row + col) % 4]);
-        }
-      }
-    }
-  }
-
-  const colors = [COLORS.brickA, COLORS.brickB, COLORS.brickC, COLORS.brickD];
-
-  for (const [bx, by, ci] of brickData) {
-    const brick = scene.add.rectangle(bx, by, CELL - 2, 10, colors[ci], 1);
-    brick.setStrokeStyle(1, COLORS.cell, 0.7);
-    scene.physics.add.existing(brick, true);
-    scene.playfield.bricks.add(brick);
-  }
-
-  scene.state.remainingBricks = scene.playfield.bricks.countActive(true);
-}
-
-function resetBalls(scene) {
-  const [topBall, bottomBall] = scene.playfield.balls;
-
-  topBall.setPosition(GAME_WIDTH / 2 - 110, 170);
-  bottomBall.setPosition(GAME_WIDTH / 2 + 110, GAME_HEIGHT - 170);
-
-  topBall.lastTouchedBy = 'p1';
-  bottomBall.lastTouchedBy = 'p2';
-  topBall.ghostFor = { p1: false, p2: false };
-  bottomBall.ghostFor = { p1: false, p2: false };
-  topBall.previousY = topBall.y;
-  bottomBall.previousY = bottomBall.y;
-  topBall.setAlpha(1);
-  bottomBall.setAlpha(1);
-
-  topBall.body.setVelocity(190, 210);
-  bottomBall.body.setVelocity(-190, -210);
-}
-
-function updatePaddles(scene, delta, time) {
-  const paddleSpeed = 320;
-  const dashSpeed = 1500;
-  const dashDuration = 110;
-  const dashCooldown = 750;
-  const p1Body = scene.playfield.p1Paddle.body;
-  const p2Body = scene.playfield.p2Paddle.body;
-  const deltaSeconds = delta / 1000;
-
-  let p1Dir = 0;
-  if (isControlHeld(scene, 'P1_L')) p1Dir -= 1;
-  if (isControlHeld(scene, 'P1_R')) p1Dir += 1;
-
-  let p2Dir = 0;
-  if (isControlHeld(scene, 'P2_L')) p2Dir -= 1;
-  if (isControlHeld(scene, 'P2_R')) p2Dir += 1;
-
-  tryStartDash(scene, 'p1', 'P1_1', p1Dir, time, dashDuration, dashCooldown);
-  tryStartDash(scene, 'p2', 'P2_1', p2Dir, time, dashDuration, dashCooldown);
-
-  let p1Velocity = p1Dir * paddleSpeed;
-  let p2Velocity = p2Dir * paddleSpeed;
-
-  if (time < scene.state.dash.p1.activeUntil) {
-    p1Velocity = scene.state.dash.p1.dir * dashSpeed;
-  }
-  if (time < scene.state.dash.p2.activeUntil) {
-    p2Velocity = scene.state.dash.p2.dir * dashSpeed;
-  }
-
-  p1Body.setVelocityX(0);
-  p2Body.setVelocityX(0);
-
-  scene.playfield.p1Paddle.setX(
-    Phaser.Math.Clamp(
-      scene.playfield.p1Paddle.x + p1Velocity * deltaSeconds,
-      110,
-      GAME_WIDTH - 110,
-    ),
-  );
-  scene.playfield.p2Paddle.setX(
-    Phaser.Math.Clamp(
-      scene.playfield.p2Paddle.x + p2Velocity * deltaSeconds,
-      110,
-      GAME_WIDTH - 110,
-    ),
-  );
-
-  if (typeof p1Body.updateFromGameObject === 'function') {
-    p1Body.updateFromGameObject();
-  }
-  if (typeof p2Body.updateFromGameObject === 'function') {
-    p2Body.updateFromGameObject();
-  }
-}
-
-function tryStartDash(scene, playerKey, buttonCode, dir, time, duration, cooldown) {
-  if (!scene.controls.pressed[buttonCode]) return;
-  scene.controls.pressed[buttonCode] = false;
-  if (dir === 0) return;
-  const dashState = scene.state.dash[playerKey];
-  if (time < dashState.cooldownUntil) return;
-  dashState.dir = dir;
-  dashState.activeUntil = time + duration;
-  dashState.cooldownUntil = time + cooldown;
-  playSound(scene, 'dash');
-  spawnDashTrail(scene, playerKey, dir);
-}
-
-function spawnDashTrail(scene, playerKey, dir) {
-  const paddle =
-    playerKey === 'p1' ? scene.playfield.p1Paddle : scene.playfield.p2Paddle;
-  const color = playerKey === 'p1' ? COLORS.p1 : COLORS.p2;
-  const trail = scene.add.rectangle(paddle.x, paddle.y, paddle.width, paddle.height, color, 0.6);
-  scene.tweens.add({
-    targets: trail,
-    x: paddle.x - dir * 50,
-    alpha: 0,
-    scaleX: 0.4,
-    duration: 260,
-    onComplete: () => trail.destroy(),
-  });
-}
-
-function updateBallGhostStates(scene) {
-  const topLine = scene.playfield.p1Paddle.y;
-  const bottomLine = scene.playfield.p2Paddle.y;
-
-  for (const ball of scene.playfield.balls) {
-    const previousY = typeof ball.previousY === 'number' ? ball.previousY : ball.y;
-    const currentY = ball.y;
-
-    if (!ball.ghostFor.p1 && previousY >= topLine && currentY < topLine) {
-      ball.ghostFor.p1 = true;
-      animatePenaltyCounter(scene, 'p1');
-      playSound(scene, 'penalty');
-    } else if (ball.ghostFor.p1 && previousY <= topLine && currentY > topLine) {
-      ball.ghostFor.p1 = false;
-    }
-
-    if (!ball.ghostFor.p2 && previousY <= bottomLine && currentY > bottomLine) {
-      ball.ghostFor.p2 = true;
-      animatePenaltyCounter(scene, 'p2');
-      playSound(scene, 'penalty');
-    } else if (
-      ball.ghostFor.p2 &&
-      previousY >= bottomLine &&
-      currentY < bottomLine
-    ) {
-      ball.ghostFor.p2 = false;
-    }
-
-    ball.setAlpha(ball.ghostFor.p1 || ball.ghostFor.p2 ? 0.45 : 1);
-    ball.previousY = currentY;
-  }
-}
-
-function checkBallEscape(scene) {
-  for (const ball of scene.playfield.balls) {
-    const escaped =
-      !isFinite(ball.x) || !isFinite(ball.y) ||
-      ball.x < 10 || ball.x > GAME_WIDTH - 10 ||
-      ball.y < 10 || ball.y > GAME_HEIGHT - 10;
-    if (!escaped) {
-      continue;
-    }
-    // Ball slipped out — respawn it near centre heading toward the field
-    const vy = ball.lastTouchedBy === 'p1' ? 220 : -220;
-    const vx = Phaser.Math.Between(-160, 160);
-    ball.setPosition(GAME_WIDTH / 2, GAME_HEIGHT / 2);
-    ball.ghostFor = { p1: false, p2: false };
-    ball.previousY = GAME_HEIGHT / 2;
-    ball.setAlpha(1);
-    ball.body.setVelocity(vx, vy);
-  }
-}
-
-function canBallCollideWithPaddle(ball, playerKey) {
-  return ball.active && !ball.ghostFor?.[playerKey];
-}
-
-function updateBallTrails(scene, time) {
-  if (time % 3 > 1) {
-    return;
-  }
-
-  for (const ball of scene.playfield.balls) {
-    const trail = scene.add.circle(ball.x, ball.y, 4, ball.glowColor, 0.2);
-    scene.playfield.ballTrails.add(trail);
-
-    scene.tweens.add({
-      targets: trail,
-      alpha: 0,
-      scaleX: 0.2,
-      scaleY: 0.2,
-      duration: 250,
-      onComplete: () => trail.destroy(),
-    });
-  }
-}
-
-function handleBallPaddleCollision(scene, ball, paddle, playerKey) {
-  ball.lastTouchedBy = playerKey;
-  const ballColor = playerKey === 'p1' ? COLORS.p1 : COLORS.p2;
-  ball.setFillStyle(ballColor);
-  ball.glowColor = ballColor;
-
-  const offset = (ball.x - paddle.x) / (paddle.width / 2);
-  const currentSpeed = Math.min(ball.body.velocity.length() + 8, 330);
-  const horizontalVelocity = Phaser.Math.Clamp(offset * 220, -220, 220);
-  const verticalDirection = paddle === scene.playfield.p1Paddle ? 1 : -1;
-  const verticalVelocity = Math.max(120, Math.sqrt(currentSpeed * currentSpeed - horizontalVelocity * horizontalVelocity));
-
-  ball.body.setVelocity(horizontalVelocity, verticalVelocity * verticalDirection);
-}
-
-function handleBallBrickCollision(scene, ball, brick) {
-  if (!brick.active) {
-    return;
-  }
-
-  const brickX = brick.x;
-  const brickY = brick.y;
-  const brickHalfWidth = brick.width / 2;
-  const brickHalfHeight = brick.height / 2;
-  const deltaX = ball.x - brickX;
-  const deltaY = ball.y - brickY;
-  const normalizedX = Math.abs(deltaX) / Math.max(brickHalfWidth, 1);
-  const normalizedY = Math.abs(deltaY) / Math.max(brickHalfHeight, 1);
-  const speedX = Math.abs(ball.body.velocity.x);
-  const speedY = Math.abs(ball.body.velocity.y);
-
-  if (normalizedX > normalizedY) {
-    ball.body.setVelocityX((deltaX >= 0 ? 1 : -1) * Math.max(speedX, 150));
-    ball.setX(
-      brickX +
-        (deltaX >= 0 ? 1 : -1) * (brickHalfWidth + ball.width / 2 + 1),
-    );
-  } else {
-    ball.body.setVelocityY((deltaY >= 0 ? 1 : -1) * Math.max(speedY, 150));
-    ball.setY(
-      brickY +
-        (deltaY >= 0 ? 1 : -1) * (brickHalfHeight + ball.height / 2 + 1),
-    );
-  }
-
-  if (typeof ball.body.updateFromGameObject === 'function') {
-    ball.body.updateFromGameObject();
-  }
-
-  if (brick.body) {
-    brick.body.enable = false;
-  }
-  scene.playfield.bricks.remove(brick);
-  brick.destroy();
-  scene.state.remainingBricks -= 1;
-
-  if (ball.lastTouchedBy === 'p1') {
-    scene.state.scores.p1 += 1;
-  } else if (ball.lastTouchedBy === 'p2') {
-    scene.state.scores.p2 += 1;
-  }
-
-  spawnBrickBurst(scene, brick.x, brick.y, brick.fillColor);
-  playSound(scene, 'brick');
-  refreshHud(scene);
-  maybeFinishMatch(scene);
-}
-
-function startAmbientMusic(scene) {
-  if (scene.state.musicStarted) {
-    return;
-  }
-  scene.state.musicStarted = true;
-
-  try {
-    const ctx = scene.sound.context;
-    if (!ctx) {
-      return;
-    }
-
-    // Master output
-    const out = ctx.createGain();
-    out.gain.value = 0.18;
-    out.connect(ctx.destination);
-
-    // Feedback delay for space/depth
-    const dly  = ctx.createDelay(2);
-    const dlFb = ctx.createGain();
-    dly.delayTime.value = 0.48;
-    dlFb.gain.value = 0.28;
-    dly.connect(dlFb);
-    dlFb.connect(dly);
-    dlFb.connect(out);
-
-    // Pad — Am7 chord (A2 C3 E3 G3) through chorused detuned oscs + LP filter
-    const padFilt = ctx.createBiquadFilter();
-    padFilt.type = 'lowpass';
-    padFilt.frequency.value = 800;
-    padFilt.Q.value = 1.4;
-    padFilt.connect(out);
-    padFilt.connect(dly);
-
-    // Very slow LFO sweeps the filter cutoff for movement
-    const lfo  = ctx.createOscillator();
-    const lfoG = ctx.createGain();
-    lfo.frequency.value = 0.055;
-    lfoG.gain.value = 430;
-    lfo.connect(lfoG);
-    lfoG.connect(padFilt.frequency);
-    lfo.start();
-
-    [
-      [110, 0, 'sawtooth'], [110, 11, 'sawtooth'], [110, -11, 'sawtooth'],
-      [130.81, 0, 'triangle'], [164.81, 5, 'triangle'], [196, -4, 'triangle'],
-    ].forEach(([f, d, type]) => {
-      const osc = ctx.createOscillator();
-      const g   = ctx.createGain();
-      osc.type = type;
-      osc.frequency.value = f;
-      osc.detune.value = d;
-      g.gain.value = 0.028;
-      osc.connect(g);
-      g.connect(padFilt);
-      osc.start();
-    });
-
-    // Arp — A minor pentatonic, up and back down
-    const ARP  = [220, 261.63, 293.66, 329.63, 392, 440, 392, 329.63, 293.66, 261.63];
-    const STEP = 0.43;
-    const ALEN = ARP.length * STEP;
-
-    function scheduleArp(t0) {
-      ARP.forEach((freq, i) => {
-        const t   = t0 + i * STEP;
-        const osc = ctx.createOscillator();
-        const g   = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.value = freq;
-        osc.connect(g);
-        g.connect(out);
-        g.connect(dly);
-        g.gain.setValueAtTime(0.001, t);
-        g.gain.linearRampToValueAtTime(0.048, t + 0.018);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + STEP * 0.65);
-        osc.start(t);
-        osc.stop(t + STEP * 0.72);
-      });
-      scene.time.delayedCall((ALEN - 0.06) * 1000, () => scheduleArp(t0 + ALEN));
-    }
-
-    // Sub-bass pulse on the beat (55 Hz sine, 120 bpm)
-    const BEAT = 1.0;
-    function scheduleBass(t) {
-      const osc = ctx.createOscillator();
-      const g   = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 55;
-      osc.connect(g);
-      g.connect(out);
-      g.gain.setValueAtTime(0.28, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-      osc.start(t);
-      osc.stop(t + 0.55);
-      scene.time.delayedCall(BEAT * 1000, () => scheduleBass(t + BEAT));
-    }
-
-    // Short high-pitched digital tick — every half-beat, offset for syncopation
-    const TICK = 0.5;
-    function scheduleTick(t) {
-      const osc = ctx.createOscillator();
-      const g   = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 1320;
-      osc.connect(g);
-      g.connect(out);
-      g.gain.setValueAtTime(0.028, t);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
-      osc.start(t);
-      osc.stop(t + 0.025);
-      scene.time.delayedCall(TICK * 1000, () => scheduleTick(t + TICK));
-    }
-
-    const t0 = ctx.currentTime + 0.3;
-    scheduleArp(t0);
-    scheduleBass(t0);
-    scheduleTick(t0 + 0.25);
-  } catch (_) {}
-}
-
-function playSound(scene, type) {
-  try {
-    const ctx = scene.sound && scene.sound.context ? scene.sound.context : new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    const now = ctx.currentTime;
-    if (type === 'brick') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.exponentialRampToValueAtTime(440, now + 0.08);
-      gain.gain.setValueAtTime(0.18, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    } else if (type === 'penalty') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(300, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.35);
-      gain.gain.setValueAtTime(0.28, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-      osc.start(now);
-      osc.stop(now + 0.38);
-    } else if (type === 'click') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(1200, now);
-      osc.frequency.exponentialRampToValueAtTime(600, now + 0.04);
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (type === 'dash') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(900, now + 0.12);
-      gain.gain.setValueAtTime(0.22, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-      osc.start(now);
-      osc.stop(now + 0.18);
-    } else if (type === 'select') {
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(700, now);
-      osc.frequency.exponentialRampToValueAtTime(1400, now + 0.08);
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-      osc.start(now);
-      osc.stop(now + 0.1);
-    }
-  } catch (_) {}
-}
-
-function spawnBrickBurst(scene, x, y, color) {
-  for (let index = 0; index < 6; index += 1) {
-    const particle = scene.add.rectangle(x, y, 4, 4, color, 1);
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-    const distance = Phaser.Math.Between(16, 42);
-
-    scene.tweens.add({
-      targets: particle,
-      x: x + Math.cos(angle) * distance,
-      y: y + Math.sin(angle) * distance,
-      alpha: 0,
-      angle: Phaser.Math.Between(-90, 90),
-      duration: Phaser.Math.Between(180, 320),
-      onComplete: () => particle.destroy(),
-    });
-  }
-}
-
-function refreshHud(scene) {
-  scene.hud.p1Score.setText(`P1 ${String(scene.state.scores.p1).padStart(2, '0')}`);
-  scene.hud.p2Score.setText(`P2 ${String(scene.state.scores.p2).padStart(2, '0')}`);
-  scene.hud.remaining.setText(`BRICKS ${String(scene.state.remainingBricks).padStart(3, '0')}`);
-}
-
-function animatePenaltyCounter(scene, playerKey) {
-  const text =
-    playerKey === 'p1' ? scene.hud.p1Score : scene.hud.p2Score;
-  const baseColor =
-    playerKey === 'p1'
-      ? scene.hud.scoreColors.p1
-      : scene.hud.scoreColors.p2;
-
-  scene.tweens.killTweensOf(text);
-  text.setColor(scene.hud.scoreColors.penalty);
-  text.setScale(1);
-  text.setAngle(0);
-
-  scene.tweens.add({
-    targets: text,
-    scaleX: 1.12,
-    scaleY: 1.12,
-    angle: playerKey === 'p1' ? -6 : 6,
-    duration: 90,
-    yoyo: true,
-    repeat: 1,
-    onComplete: () => {
-      text.setColor(baseColor);
-      text.setScale(1);
-      text.setAngle(0);
-    },
-  });
-}
-
-function maybeFinishMatch(scene) {
-  const { p1, p2 } = scene.state.scores;
-  const remaining = scene.state.remainingBricks;
-  const leaderScore = Math.max(p1, p2);
-  const trailingScore = Math.min(p1, p2);
-
-  if (remaining === 0 || leaderScore >= trailingScore + remaining) {
-    finishMatch(scene);
-  }
-}
-
-function finishMatch(scene) {
-  if (scene.state.phase !== 'playing') {
-    return;
-  }
-
-  scene.state.phase = 'gameover';
-  scene.physics.pause();
-  scene.hud.status.setText('');
-
-  const p1 = scene.state.scores.p1;
-  const p2 = scene.state.scores.p2;
-  const isTie = p1 === p2;
-
-  scene.state.winner = isTie ? 'draw' : p1 > p2 ? 'p1' : 'p2';
-  scene.state.winnerLabel =
-    scene.state.winner === 'p1'
-      ? 'PLAYER 1'
-      : scene.state.winner === 'p2'
-        ? 'PLAYER 2'
-        : 'DRAW';
-
-  scene.endGame.container.setVisible(true);
-  scene.endGame.summary.setText(
-    isTie
-      ? `${p1}  :  ${p2}`
-      : `${scene.state.winnerLabel}  ${Math.max(p1, p2)}  :  ${Math.min(p1, p2)}`,
-  );
-  scene.endGame.nameLabel.setText(
-    isTie ? 'DRAW TAG' : 'INITIALS',
-  );
-  scene.endGame.saveStatus.setText(scene.state.saveStatus);
-
-  scene.state.nameEntry.row = 0;
-  scene.state.nameEntry.col = 0;
-  scene.state.nameEntry.moveCooldownUntil = 0;
-  scene.state.nameEntry.confirmCooldownUntil = 0;
-  scene.state.nameEntry.lastMoveVector = { x: 0, y: 0 };
-  refreshNameEntry(scene);
-  updateLetterGridHighlight(scene);
-}
-
-function handleNameEntry(scene, time) {
-  const axisX = getHorizontalMenuAxis(scene.controls);
-  const axisY = getVerticalMenuAxis(scene.controls);
-  const entry = scene.state.nameEntry;
-
-  if (
-    time >= entry.moveCooldownUntil &&
-    (axisX !== 0 || axisY !== 0) &&
-    (entry.lastMoveVector.x !== axisX || entry.lastMoveVector.y !== axisY)
-  ) {
-    moveLetterSelection(scene, axisX, axisY);
-    entry.moveCooldownUntil = time + 160;
-    playSound(scene, 'click');
-  }
-
-  if (axisX === 0 && axisY === 0) {
-    entry.lastMoveVector = { x: 0, y: 0 };
-  } else {
-    entry.lastMoveVector = { x: axisX, y: axisY };
-  }
-
-  if (
-    time >= entry.confirmCooldownUntil &&
-    consumeAnyPressedControl(scene, ['P1_1', 'P2_1', 'P1_2', 'P2_2', 'START1', 'START2'])
-  ) {
-    entry.confirmCooldownUntil = time + 180;
-    playSound(scene, 'select');
-    activateCurrentLetter(scene);
-  }
-}
-
-function getHorizontalMenuAxis(controls) {
-  let axis = 0;
-  if (controls.held.P1_L || controls.held.P2_L) {
-    axis -= 1;
-  }
-  if (controls.held.P1_R || controls.held.P2_R) {
-    axis += 1;
-  }
-  return Phaser.Math.Clamp(axis, -1, 1);
-}
-
-function getVerticalMenuAxis(controls) {
-  let axis = 0;
-  if (controls.held.P1_U || controls.held.P2_U) {
-    axis -= 1;
-  }
-  if (controls.held.P1_D || controls.held.P2_D) {
-    axis += 1;
-  }
-  return Phaser.Math.Clamp(axis, -1, 1);
+function pressed(scene, code) {
+  const v = scene.ctl.pressed[code];
+  scene.ctl.pressed[code] = false;
+  return v;
 }
 
 function normalizeIncomingKey(key) {
-  if (typeof key !== 'string' || key.length === 0) {
-    return '';
-  }
-
-  if (key === ' ') {
-    return 'space';
-  }
-
-  return key.toLowerCase();
-}
-
-function isControlHeld(scene, controlCode) {
-  return scene.controls.held[controlCode] === true;
-}
-
-function consumeAnyPressedControl(scene, controlCodes) {
-  for (const controlCode of controlCodes) {
-    if (scene.controls.pressed[controlCode]) {
-      scene.controls.pressed[controlCode] = false;
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function moveLetterSelection(scene, axisX, axisY) {
-  const entry = scene.state.nameEntry;
-
-  if (axisY !== 0) {
-    entry.row = Phaser.Math.Wrap(entry.row + axisY, 0, LETTER_GRID.length);
-    entry.col = Math.min(entry.col, LETTER_GRID[entry.row].length - 1);
-  }
-
-  if (axisX !== 0) {
-    entry.col = Phaser.Math.Wrap(entry.col + axisX, 0, LETTER_GRID[entry.row].length);
-  }
-
-  updateLetterGridHighlight(scene);
-}
-
-function updateLetterGridHighlight(scene) {
-  const entry = scene.state.nameEntry;
-  for (const item of scene.endGame.gridLabels) {
-    const active = item.row === entry.row && item.col === entry.col;
-    item.cell.setFillStyle(active ? COLORS.accent : COLORS.cell, active ? 1 : 0.95);
-    item.cell.setStrokeStyle(2, active ? COLORS.white : COLORS.frame, active ? 1 : 0.8);
-    item.label.setColor(active ? '#04110b' : '#f7ffd8');
-  }
-}
-
-function activateCurrentLetter(scene) {
-  const entry = scene.state.nameEntry;
-  const selectedValue = LETTER_GRID[entry.row][entry.col];
-
-  if (selectedValue === 'DEL') {
-    entry.letters.pop();
-    refreshNameEntry(scene);
-    return;
-  }
-
-  if (selectedValue === 'END') {
-    if (entry.letters.length === 0) {
-      scene.endGame.saveStatus.setText('Pick at least one character before saving.');
-      return;
-    }
-
-    submitHighScore(scene);
-    return;
-  }
-
-  if (entry.letters.length >= WINNING_NAME_LENGTH) {
-    entry.letters.shift();
-  }
-
-  entry.letters.push(selectedValue);
-  refreshNameEntry(scene);
-}
-
-function refreshNameEntry(scene) {
-  const letters = scene.state.nameEntry.letters.slice();
-  while (letters.length < WINNING_NAME_LENGTH) {
-    letters.push('_');
-  }
-  scene.endGame.nameValue.setText(letters.join(' '));
-}
-
-function submitHighScore(scene) {
-  if (scene.state.phase !== 'gameover') {
-    return;
-  }
-
-  const initials = scene.state.nameEntry.letters.join('').slice(0, WINNING_NAME_LENGTH) || '???';
-  const winningScore =
-    scene.state.winner === 'p1'
-      ? scene.state.scores.p1
-      : scene.state.winner === 'p2'
-        ? scene.state.scores.p2
-        : scene.state.scores.p1;
-
-  const entry = {
-    name: initials,
-    winner: scene.state.winnerLabel,
-    score: winningScore,
-    detail: `${scene.state.scores.p1}-${scene.state.scores.p2}`,
-    savedAt: new Date().toISOString().slice(0, 10),
-  };
-
-  scene.state.saveStatus = `Saved ${initials}! Press START to play again.`;
-  scene.endGame.saveStatus.setText(scene.state.saveStatus);
-  scene.state.phase = 'saved';
-
-  persistHighScore(entry)
-    .then((nextScores) => {
-      scene.state.highScores = nextScores;
-      refreshLeaderboard(scene);
-    })
-    .catch(() => {
-      scene.state.saveStatus = 'Could not save the score, but the game result stands.';
-      if (scene.state.phase === 'saved') {
-        scene.endGame.saveStatus.setText(scene.state.saveStatus);
-      }
-    });
-}
-
-function refreshLeaderboard(scene) {
-  const lines = scene.state.highScores.length
-    ? scene.state.highScores.map((entry, index) => {
-        const rank = String(index + 1).padStart(2, '0');
-        const score = String(entry.score).padStart(2, '0');
-        return `${rank} ${entry.name.padEnd(3, ' ')} ${score} ${entry.winner}`;
-      })
-    : ['NO SAVED SCORES YET'];
-
-  scene.endGame.leaderboard.setText(lines.join('\n'));
-}
-
-async function persistHighScore(entry) {
-  const existing = await loadHighScores();
-  const nextScores = existing
-    .concat(entry)
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      return left.savedAt < right.savedAt ? 1 : -1;
-    })
-    .slice(0, MAX_HIGH_SCORES);
-
-  await storageSet(STORAGE_KEY, nextScores);
-  return nextScores;
-}
-
-async function loadHighScores() {
-  const result = await storageGet(STORAGE_KEY);
-  if (!result.found || !Array.isArray(result.value)) {
-    return [];
-  }
-
-  return result.value.filter(isHighScoreEntry).slice(0, MAX_HIGH_SCORES);
-}
-
-function isHighScoreEntry(value) {
-  return (
-    value &&
-    typeof value === 'object' &&
-    typeof value.name === 'string' &&
-    typeof value.winner === 'string' &&
-    typeof value.score === 'number' &&
-    typeof value.detail === 'string' &&
-    typeof value.savedAt === 'string'
-  );
-}
-
-function getStorage() {
-  if (window.platanusArcadeStorage) {
-    return window.platanusArcadeStorage;
-  }
-
-  return {
-    async get(key) {
-      try {
-        const raw = window.localStorage.getItem(key);
-        return raw === null
-          ? { found: false, value: null }
-          : { found: true, value: JSON.parse(raw) };
-      } catch {
-        return { found: false, value: null };
-      }
-    },
-    async set(key, value) {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    },
-};
-}
-
-async function storageGet(key) {
-  return getStorage().get(key);
-}
-
-async function storageSet(key, value) {
-  return getStorage().set(key, value);
+  if (typeof key !== 'string' || key.length === 0) return '';
+  return key === ' ' ? 'space' : key.toLowerCase();
 }

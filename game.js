@@ -236,6 +236,7 @@ function makeTextures(scene) {
     g.fillStyle(0xffffff).fillCircle(8, 6, 5).fillRect(4, 10, 8, 6);
     g.fillStyle(0x000000).fillRect(5, 5, 2, 2).fillRect(9, 5, 2, 2);
   });
+  makeTile(scene, 'arrow', (g) => g.fillStyle(0xe1ff00).fillTriangle(3, 3, 13, 8, 3, 13));
   // Soft light discs used to "erase" darkness: normal and hidden (tighter vignette).
   makeLight(scene, 'light', T * 3);
   makeLight(scene, 'lightS', T * 1.5);
@@ -600,7 +601,8 @@ class Play extends Phaser.Scene {
 
   makePlayer(key, at, pre, i) {
     const spr = this.w(this.add.sprite(at.x, at.y, key + '0').setDepth(10));
-    return { key, spr, pre, i, step: 0, hide: null, seenHide: false, caught: false, out: false, res: 0, task: null };
+    const arrow = this.w(this.add.image(at.x, at.y, 'arrow').setDepth(103).setAlpha(0.75).setVisible(false));
+    return { key, spr, arrow, pre, i, step: 0, hide: null, seenHide: false, caught: false, out: false, res: 0, task: null };
   }
 
   // Axis-separated move with a small feet hitbox so players slide along walls.
@@ -696,6 +698,7 @@ class Play extends Phaser.Scene {
     this.ui.add(f);
     this.tweens.add({ targets: f, scale: 24, duration: 600, ease: 'Quad.easeIn', onComplete: () => this.tweens.add({ targets: f, alpha: 0, duration: 300, onComplete: () => f.destroy() }) });
     sfxScream(this);
+    this.cams[p.i].shake(350, 0.012);
     if (this.players.every((q) => q.caught)) this.end(false);
   }
 
@@ -965,6 +968,19 @@ class Play extends Phaser.Scene {
       }
     }
     this.hints[p.i].setText(hint);
+    this.guide(p);
+  }
+
+  // Arrow toward the next goal: nearest pending task, then the keypad, then the open door.
+  guide(p) {
+    const busy = p.out || p.caught || p.hide || p.task || p.talk;
+    const goal = DOOR ? this.pts.E[0] : this.got.every(Boolean) ? this.pts.K[0]
+      : this.near(this.tasks.filter((k) => !k.done).flatMap((k) => k.pts), p.spr, 1e9);
+    const d = goal ? Math.hypot(goal.x - p.spr.x, goal.y - p.spr.y) : 0;
+    p.arrow.setVisible(!busy && d > 4 * T);
+    if (!p.arrow.visible) return;
+    const a = Math.atan2(goal.y - p.spr.y, goal.x - p.spr.x);
+    p.arrow.setPosition(p.spr.x + Math.cos(a) * 16, p.spr.y + Math.sin(a) * 16).setRotation(a);
   }
 
   checkWin() {

@@ -557,14 +557,21 @@ const has = (st, req) => !req || req.split('+').every((k) => st.inv[k] > 0 || st
 const STATE = ['sano', 'herido', 'enfermo', 'muerto'];
 const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bonus de radio)
 
+const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
+const SC = ['#2ec4a0', '#ff9a3b', '#ffd23b', '#666']; // color por estado
+const KIND = { r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', 0xffd23b], x: ['FIN', 0x9b7bff] };
+const names = (req) => req.split('+').map((k) => ITEMS[k][0]).join(' + ');
+
 function startLog(s) {
   const st = s.st;
   st.cine.destroy();
   st.ph = 'log';
+  st.s = s;
   st.inv = {};
   st.a = st.c = st.day = st.thirst = st.hunger = st.eb = 0;
   st.next = 2;
-  st.lines = [];
+  st.rows = [];
+  st.pplT = [];
   st.miss = {};
   st.ppl = st.P.filter((p) => p.alive).map((p) => ({ n: st.P.length == 1 ? 'Tú' : p.k.slice(0, 2), st: 0 }));
   for (const it of st.bunker) {
@@ -579,31 +586,67 @@ function startLog(s) {
   if (inv.porotos && !cook.porotos) st.miss.Abrelatas = 1;
   if (inv.tallarines && !cook.tallarines) st.miss['Balón de gas'] = 1;
   st.eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
+
   s.UL.add(s.add.rectangle(0, 0, W, H, 0x0b0b0e).setOrigin(0));
-  s.UL.add(txt(s, 24, 18, 'BITÁCORA DEL BUNKER', 24, '#ffd23b'));
-  st.logT = txt(s, 24, 64, '', 14, '#ddd').setWordWrapWidth(470).setLineSpacing(4);
-  st.statT = txt(s, 520, 64, '', 14).setLineSpacing(4).setWordWrapWidth(260);
+  s.UL.add(txt(s, 24, 16, 'BITÁCORA DEL BUNKER', 22, '#ffd23b'));
+  st.logC = s.add.container();
+  // panel derecho
+  st.statC = s.add.container(0, 0, [
+    s.add.rectangle(516, 56, 268, 250, 0x15151c).setOrigin(0).setStrokeStyle(1, 0x2a2a36),
+    txt(s, 532, 66, 'AGUA', 13, '#3b9cff'),
+    txt(s, 652, 66, 'COMIDA', 13, '#ff9a3b'),
+  ]);
+  st.dayT = txt(s, 776, 12, '', 30).setOrigin(1, 0);
+  st.aT = txt(s, 532, 82, '', 30, '#3b9cff');
+  st.cT = txt(s, 652, 82, '', 30, '#ff9a3b');
+  st.toolT = txt(s, 532, 0, '', 13, '#999').setWordWrapWidth(236);
+  st.statC.add([st.dayT, st.aT, st.cT, st.toolT]);
+  // tarjeta de evento
   st.card = s.add.container(W / 2, 452).setVisible(false);
-  st.cardBg = s.add.rectangle(0, 0, 640, 280, 0x1b1b22).setStrokeStyle(3, 0xffd23b);
-  st.cardT = txt(s, -300, -122, '', 18).setWordWrapWidth(600);
-  st.optT = [0, 1, 2].map((i) => txt(s, -280, -50 + i * 38, '', 16).setWordWrapWidth(560));
-  st.bar = s.add.rectangle(-300, 122, 600, 6, 0xffd23b).setOrigin(0, 0.5);
-  st.card.add([st.cardBg, st.cardT, ...st.optT, st.bar]);
-  s.UL.add([st.logT, st.statT, st.card]);
+  st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x1b1b22).setStrokeStyle(3, 0xffd23b);
+  st.tag = s.add.rectangle(-324, -126, 110, 24, 0xffd23b).setOrigin(0);
+  st.tagT = txt(s, -269, -114, '', 14, '#000').setOrigin(0.5);
+  st.cardT = txt(s, -324, -90, '', 19).setWordWrapWidth(648);
+  st.sel = s.add.rectangle(-330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, 0xffd23b);
+  st.optT = [0, 1, 2].map(() => txt(s, -310, 0, '', 18).setOrigin(0, 0.5).setWordWrapWidth(620));
+  st.hint = txt(s, -324, 104, '', 14, '#999');
+  st.bar = s.add.rectangle(-330, 128, 660, 6, 0xffd23b).setOrigin(0, 0.5);
+  st.card.add([st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, st.hint, st.bar]);
+  s.UL.add([st.logC, st.statC, st.card]);
+
   const n = alive(st).length;
-  log(st, n ? 'Se cierra la escotilla. Son ' + n + ' en el bunker.' : 'Nadie llegó al bunker.');
-  log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.');
-  st.lt = 1800;
+  log(st, n ? 'Se cierra la escotilla. Son ' + n + ' en el bunker.' : 'Nadie llegó al bunker.', '#ffd23b');
+  log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', '#ffd23b');
+  st.lt = DAY_MS;
   if (!n) gameOver(s, 'El apocalipsis empezó sin ti.');
 }
 
-function log(st, m) {
-  st.lines.push(m);
-  st.logT.setText(st.lines.slice(-11).join('\n'));
+function log(st, m, col = '#cfcfe0') {
+  const t = txt(st.s, 24, 0, m, 16, col).setWordWrapWidth(472);
+  st.rows.push(t);
+  st.logC.add(t);
+  layoutLog(st);
+  stat(st);
+}
+
+// Apila las líneas desde arriba; si no caben (la tarjeta ocupa la mitad de abajo), borra las más viejas.
+function layoutLog(st) {
+  const max = (st.ev || st.over ? 300 : 584) - 60;
+  while (st.rows.reduce((a, r) => a + r.height + 8, 0) > max) st.rows.shift().destroy();
+  let y = 60;
+  for (const r of st.rows) { r.y = y; y += r.height + 8; }
+}
+
+function stat(st) {
+  const s = st.s;
+  st.dayT.setText('DÍA ' + st.day);
+  st.aT.setText(st.a);
+  st.cT.setText(st.c);
+  st.pplT.forEach((t) => t.destroy());
+  st.pplT = st.ppl.map((p, i) => txt(s, 532, 130 + i * 20, p.n + ': ' + STATE[p.st], 15, SC[p.st]));
+  st.statC.add(st.pplT);
   const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
-  st.statT.setText(
-    'Día ' + st.day + '\nAgua: ' + st.a + '   Comida: ' + st.c + '\n\n' +
-    st.ppl.map((p) => p.n + ': ' + STATE[p.st]).join('\n') + '\n\n' + (tools.join(', ') || 'Sin herramientas'));
+  st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(140 + st.ppl.length * 20);
 }
 
 function hit(st, from, to) {
@@ -611,7 +654,7 @@ function hit(st, from, to) {
   if (!c.length) return;
   const p = pick(c);
   p.st = to;
-  if (to == 3) log(st, p.n == 'Tú' ? 'Moriste.' : p.n + ' murió.');
+  if (to == 3) log(st, p.n == 'Tú' ? 'Moriste.' : p.n + ' murió.', '#ff4a4a');
 }
 
 function apply(st, eff) {
@@ -640,65 +683,102 @@ function nextDay(s) {
   let m = '';
   if (st.a >= n) { st.a -= n; st.thirst = 0; } else { st.a = 0; st.thirst++; m += 'No queda agua. '; }
   if (st.c >= n) { st.c -= n; st.hunger = 0; } else { st.c = 0; st.hunger++; m += 'No queda comida. '; }
-  log(st, 'Día ' + st.day + ': ' + (m || pick(FLAVOR)));
+  log(st, 'Día ' + st.day + ' · ' + (m || pick(FLAVOR)), m ? '#ff9a3b' : '#cfcfe0');
   if (st.thirst >= 3 || st.hunger >= 6) { st.miss[st.thirst >= 3 ? 'Más agua' : 'Más comida'] = 1; hit(st, -1, 3); }
   for (const p of alive(st)) {
     if (p.st == 0 || Math.random() > (p.st == 2 ? 0.12 : 0.06)) continue;
-    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.'); if (Math.random() < 0.3) st.inv.botiquin--; }
+    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.', '#2ec4a0'); if (Math.random() < 0.3) st.inv.botiquin--; }
     else hit(st, p.st, 3);
   }
   if (!alive(st).length) return gameOver(s, 'No sobrevivió nadie.');
-  if (st.day >= ENDING_DAY && Math.random() < 0.1 + st.eb) { const e = pick(ENDINGS); return openCard(s, e[0], e[1]); }
+  if (st.day >= ENDING_DAY && Math.random() < 0.1 + st.eb) { const e = pick(ENDINGS); return openCard(s, e[0], e[1], 'f'); }
   if (st.day >= st.next) {
     st.next = st.day + 2 + rnd(3);
     const tot = EVENTS.reduce((a, e) => a + weight(e[0], st.day), 0);
     let r = Math.random() * tot;
     const ev = EVENTS.find((e) => (r -= weight(e[0], st.day)) <= 0) || EVENTS[0];
     apply(st, ev[2]);
-    openCard(s, ev[1], ev[3]);
+    openCard(s, ev[1], ev[3], ev[0]);
   }
 }
 
-function openCard(s, text, opts) {
+function openCard(s, text, opts, kind) {
   const st = s.st;
-  st.ev = { opts, cur: 0, t: 10000, out: 0 };
+  st.ev = { opts, t: CHOICE_MS, cur: Math.max(0, opts.findIndex((o) => has(st, o[1]))) };
+  setTag(st, kind);
   st.cardT.setText(text);
-  st.ev.cur = opts.findIndex((o) => has(st, o[1]));
   st.card.setVisible(true);
+  layoutLog(st);
+  tone(s, 660, 0.12, 'triangle', 0.15);
   drawCard(st);
 }
 
+function setTag(st, kind) {
+  const [l, c] = KIND[kind];
+  st.tag.setFillStyle(c);
+  st.cardBg.setStrokeStyle(3, c);
+  st.tagT.setText(l + (kind == 'x' ? '' : ' · DÍA ' + st.day));
+  st.tag.width = l.length * 9 + (kind == 'x' ? 24 : 80);
+  st.tagT.x = -324 + st.tag.width / 2;
+}
+
 function drawCard(st) {
+  const ev = st.ev, y0 = -20 + Math.max(0, st.cardT.height - 30);
   st.optT.forEach((t, i) => {
-    const o = st.ev.opts[i];
+    const o = ev.opts[i];
     if (!o) return t.setText('');
     const ok = has(st, o[1]);
-    t.setText((i == st.ev.cur ? '> ' : '  ') + o[0] + (ok ? '' : '  (no tienes)')).setColor(!ok ? '#555' : i == st.ev.cur ? '#ffd23b' : '#fff');
+    t.setY(y0 + i * 40).setText((i == ev.cur ? '> ' : '  ') + o[0] + (ok ? '' : '   (no tienes)'))
+      .setColor(!ok ? '#666' : i == ev.cur ? '#ffd23b' : '#fff');
   });
+  st.sel.setVisible(true).setY(y0 + ev.cur * 40);
+  const o = ev.opts[ev.cur];
+  st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? '#999' : '#ff9a3b');
+}
+
+// Qué cambió después de aplicar un efecto, para mostrarlo en la tarjeta.
+function diff(st, b) {
+  const d = [];
+  if (st.a != b.a) d.push('Agua ' + (st.a > b.a ? '+' : '') + (st.a - b.a));
+  if (st.c != b.c) d.push('Comida ' + (st.c > b.c ? '+' : '') + (st.c - b.c));
+  st.ppl.forEach((p, i) => d.push(i >= b.ppl.length ? '+ ' + p.n : p.st != b.ppl[i] ? p.n + ': ' + STATE[p.st] : ''));
+  for (const k in st.inv) if (st.inv[k] != (b.inv[k] || 0)) d.push((st.inv[k] > (b.inv[k] || 0) ? '+ ' : '- ') + ITEMS[k][0]);
+  return d.filter(Boolean).join('  ·  ');
 }
 
 function choose(s) {
-  const st = s.st, o = st.ev.opts[st.ev.cur], win = Math.random() < o[2];
+  const st = s.st, o = st.ev.opts[st.ev.cur];
+  if (!has(st, o[1])) return tone(s, 140, 0.2, 'sawtooth', 0.2);
+  const win = Math.random() < o[2], b = { a: st.a, c: st.c, ppl: st.ppl.map((p) => p.st), inv: { ...st.inv } };
   apply(st, win ? o[3] : o[5]);
-  if (!win || /[hsk]|-[ac]/.test(o[3])) for (const x of st.ev.opts) if (x[1] && !has(st, x[1])) st.miss[x[1].split('+').map((k) => ITEMS[k][0]).join(' + ')] = 1;
-  const m = win ? o[4] : o[6] || o[4];
+  if (!win || /[hsk]|-[ac]/.test(o[3])) for (const x of st.ev.opts) if (x[1] && !has(st, x[1])) st.miss[names(x[1])] = 1;
+  const m = win ? o[4] : o[6] || o[4], d = diff(st, b);
   st.optT.forEach((t) => t.setText(''));
-  st.optT[0].setText(m).setColor(win ? '#2ec4a0' : '#ff6b4a');
-  log(st, '> ' + o[0] + ': ' + m);
-  st.ev.out = 2200;
+  st.sel.setVisible(false);
+  st.optT[0].setText(m).setColor(win ? '#2ec4a0' : '#ff6b4a').setFontSize(20);
+  st.optT[1].setText(d).setColor('#ffd23b').setFontSize(16);
+  st.hint.setText('B1 continuar').setColor('#999');
+  st.bar.width = 0;
+  log(st, '» ' + o[0] + ': ' + m, win ? '#2ec4a0' : '#ff6b4a');
+  st.ev.out = OUT_MS;
+  win ? [880, 1175].forEach((f, i) => tone(s, f, 0.15, 'triangle', 0.15, i * 0.1)) : tone(s, 110, 0.4, 'sawtooth', 0.2);
 }
 
 function stepLog(s, dt) {
   const st = s.st, ev = st.ev, any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
+  const ok = () => any('1') || pressed(s, 'START1') || pressed(s, 'START2');
   if (st.over) {
     if (pressed(s, 'START1') || pressed(s, 'START2')) s.scene.restart();
     return;
   }
   if (ev) {
     if (ev.out) {
-      if ((ev.out -= dt) <= 0) {
+      ev.out -= dt;
+      if (ev.out <= 0 || (ev.out < OUT_MS - 600 && ok())) {
         st.ev = null;
         st.card.setVisible(false);
+        st.optT.forEach((t) => t.setFontSize(18));
+        st.lt = DAY_MS;
         if (st.won) gameOver(s, '¡Sobrevivieron al apocalipsis!');
         else if (!alive(st).length) gameOver(s, 'No sobrevivió nadie.');
       }
@@ -706,19 +786,18 @@ function stepLog(s, dt) {
     }
     const step = any('D') ? 1 : any('U') ? -1 : 0;
     if (step) {
-      let c = ev.cur;
-      do c = (c + step + ev.opts.length) % ev.opts.length; while (!has(st, ev.opts[c][1]));
-      ev.cur = c;
+      ev.cur = (ev.cur + step + ev.opts.length) % ev.opts.length;
+      tone(s, 520, 0.05, 'square', 0.08);
       drawCard(st);
     }
     ev.t -= dt;
-    st.bar.width = 600 * Math.max(0, ev.t / 10000);
+    st.bar.width = 660 * Math.max(0, ev.t / CHOICE_MS);
     if (ev.t <= 0) ev.cur = pick(ev.opts.map((o, i) => (has(st, o[1]) ? i : -1)).filter((i) => i >= 0));
-    if (ev.t <= 0 || any('1') || pressed(s, 'START1') || pressed(s, 'START2')) choose(s);
+    if (ev.t <= 0 || ok()) choose(s);
     return;
   }
   if ((st.lt -= dt) <= 0 || any('1')) {
-    st.lt = 1400;
+    st.lt = DAY_MS;
     nextDay(s);
   }
 }
@@ -726,14 +805,19 @@ function stepLog(s, dt) {
 function gameOver(s, why) {
   const st = s.st, n = alive(st).length;
   st.over = 1;
+  st.ev = null;
   st.score = st.day * 100 + st.eggs * 300 + n * 200 + (st.won ? 2000 : 0);
   const miss = Object.keys(st.miss).slice(0, 4).join(', ');
+  setTag(st, 'x');
   st.card.setVisible(true);
-  st.cardT.setText(why + '\n\nDías: ' + st.day + '   Vivos: ' + n + '   Easter eggs: ' + st.eggs + '\nPUNTAJE: ' + st.score);
-  st.optT.forEach((t) => t.setText(''));
-  st.optT[1].setText(miss ? 'Te habría salvado: ' + miss : '').setColor('#ff9a3b').setY(30);
-  st.optT[2].setText('START para volver').setColor('#aaa').setY(90);
+  st.sel.setVisible(false);
+  st.cardT.setText(why);
+  st.optT[0].setText('Días ' + st.day + '   ·   Vivos ' + n + '   ·   Easter eggs ' + st.eggs).setColor('#fff').setY(-30);
+  st.optT[1].setText('PUNTAJE  ' + st.score).setColor('#ffd23b').setFontSize(26).setY(14);
+  st.optT[2].setText(miss ? 'Te habría salvado: ' + miss : '').setColor('#ff9a3b').setFontSize(16).setY(60);
+  st.hint.setText('START para volver').setColor('#999');
   st.bar.width = 0;
+  layoutLog(st);
 }
 
 function update(t, dt) {

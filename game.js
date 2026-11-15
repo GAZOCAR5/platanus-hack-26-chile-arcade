@@ -101,25 +101,38 @@ function create() {
   s.UL = s.add.layer();
   createControls(s);
   const logo = txt(s, W / 2, 110, 'TERREMOTO', 84, '#ffd23b').setOrigin(0.5);
-  const go = txt(s, W / 2, 262, 'START1  ·  1 JUGADOR        START2  ·  2 JUGADORES', 20, '#2ec4a0').setOrigin(0.5);
-  s.rankT = [1, 2].map((n) => txt(s, n == 1 ? 120 : 460, 330, '', 16).setLineSpacing(6));
+  // selector de modo: ←→ elige, B1 confirma; START1/START2 son atajos directos
+  s.st.mi = 0;
+  s.modeB = [0, 1].map((i) => s.add.rectangle(W / 2 + (i ? 130 : -130), 258, 230, 64, 0x15151c).setStrokeStyle(3, 0x444455));
+  s.modeT = [0, 1].map((i) =>
+    txt(s, W / 2 + (i ? 130 : -130), 258, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START2' : 'START1'), 20).setOrigin(0.5).setAlign('center'));
+  const go = txt(s, W / 2, 304, '←→ elegir   B1 empezar', 14, '#2ec4a0').setOrigin(0.5);
+  s.rankT = [1, 2].map((n) => txt(s, n == 1 ? 120 : 460, 362, '', 16).setLineSpacing(6));
   s.title = s.add.container(0, 0, [
     logo,
     txt(s, W / 2, 182, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con todo lo que puedas.', 16, '#ccc')
       .setOrigin(0.5).setAlign('center'),
+    ...s.modeB,
+    ...s.modeT,
     go,
-    txt(s, 120, 300, 'RANKING 1P', 18, '#ffd23b'),
-    txt(s, 460, 300, 'RANKING 2P', 18, '#ffd23b'),
+    txt(s, 120, 334, 'RANKING 1P', 18, '#ffd23b'),
+    txt(s, 460, 334, 'RANKING 2P', 18, '#ffd23b'),
     ...s.rankT,
     txt(s, W / 2, 566, 'Joystick: moverse   B1: tomar   B2: soltar   ·   Platanus Hack 26', 13, '#777').setOrigin(0.5),
   ]);
   s.UL.add(s.title);
   s.tweens.add({ targets: logo, x: { from: W / 2 - 3, to: W / 2 + 3 }, duration: 60, yoyo: true, repeat: -1, repeatDelay: 1800 });
   s.tweens.add({ targets: go, alpha: 0.3, duration: 600, yoyo: true, repeat: -1 });
+  drawMode(s);
   (RANK ? Promise.resolve(RANK) : loadRank()).then((r) => {
     RANK = r;
     if (s.rankT[0].active) s.rankT.forEach((t, i) => t.setText(rankLines(RANK[i + 1])));
   });
+}
+
+function drawMode(s) {
+  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? 0x2c2c38 : 0x15151c).setStrokeStyle(3, i == s.st.mi ? 0xffd23b : 0x444455));
+  s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? '#ffd23b' : '#888'));
 }
 
 // ---------- ranking (platanusArcadeStorage, con localStorage de respaldo) ----------
@@ -733,7 +746,7 @@ function startLog(s) {
   log(st, !n ? 'Nadie llegó al bunker.' : n == 1 ? 'Se cierra la escotilla. Estás solo en el bunker.' : 'Se cierra la escotilla. Son ' + n + ' en el bunker.', '#ffd23b');
   log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', '#ffd23b');
   st.lt = DAY_MS;
-  if (!n) gameOver(s, 'El apocalipsis empezó sin ti.');
+  if (!n) gameOver(s, 'El apocalipsis empezó sin ' + (st.P.length > 1 ? 'ustedes.' : 'ti.'));
 }
 
 function log(st, m, col = '#cfcfe0') {
@@ -1055,8 +1068,12 @@ function update(t, dt) {
   const s = this, st = s.st;
   dt = Math.min(dt, 50);
   if (st.ph == 'title') {
+    const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
+    const h = any('R') - any('L');
+    if (h) { st.mi = h > 0 ? 1 : 0; drawMode(s); tone(s, 520, 0.05, 'square', 0.08); }
     if (pressed(s, 'START1')) start(s, 1);
     else if (pressed(s, 'START2')) start(s, 2);
+    else if (any('1')) start(s, st.mi + 1);
   } else if (st.ph == 'alert') {
     st.at += dt;
     if (st.at > 5000 || (st.at > 500 && ['START1', 'START2', 'P1_1', 'P2_1'].some((c) => pressed(s, c)))) {

@@ -1,4 +1,4 @@
-// 31 Minutos de Terror — Platanus Hack 26 Arcade Challenge
+// 31 Minutos de Terror - Platanus Hack 26 Arcade Challenge
 // Fan homage to 31 Minutos (Aplaplac). Co-op stealth: escape the set before Tulio finds you.
 // Spec: GAME_SPEC.md. Milestone H1: map, collisions, split screen, movement, darkness.
 
@@ -8,9 +8,9 @@ const T = 16; // tile size in px
 const ZOOM = 2;
 const SPEED = 80; // player px/s
 
-// Arcade cabinet button → keyboard key mapping.
+// Arcade cabinet button - keyboard key mapping.
 // The physical cabinet sends these exact key codes.
-// DO NOT modify this mapping — it matches the real arcade cabinet wiring.
+// DO NOT modify this mapping - it matches the real arcade cabinet wiring.
 const CABINET_KEYS = {
   P1_U: ['w'], P1_D: ['s'], P1_L: ['a'], P1_R: ['d'],
   P1_1: ['u'], P1_2: ['i'], P1_3: ['o'],
@@ -51,8 +51,8 @@ function getStorage() {
 // --- Map ---
 // '#' wall, ' ' void, '.' floor, 'x' solid prop, 'H' hiding spot, 'N' noise object,
 // 'T' task point, 'K' exit keypad, 'E' exit door, '1'/'2' player spawns, 'Z' Tulio spawn,
-// 'p' Policarpo, 'm' Mario Hugo, 'c' Calcetín con Rombos Man.
-// Rooms: bodega (NW), control (NE), pasillo (center), camarín (W), estudio (E), salida (S).
+// 'p' Policarpo, 'm' Mario Hugo, 'c' Calcetin con Rombos Man.
+// Rooms: bodega (NW), control (NE), pasillo (center), camarin (W), estudio (E), salida (S).
 const MAP = [
   '################################################',
   '#..................#........#..................#',
@@ -95,7 +95,9 @@ const MW = MAP[0].length;
 const MH = MAP.length;
 const SOLID = '# xHNTKEpmc'; // everything except floor and spawns
 const tileAt = (tx, ty) => (tx < 0 || ty < 0 || tx >= MW || ty >= MH ? ' ' : MAP[ty][tx]);
-const solidAt = (px, py) => SOLID.includes(tileAt(Math.floor(px / T), Math.floor(py / T)));
+let DOOR = false; // exit door open
+const blocks = (c) => SOLID.includes(c) && !(DOOR && c === 'E');
+const solidAt = (px, py) => blocks(tileAt(Math.floor(px / T), Math.floor(py / T)));
 
 // --- Sprites as palette matrices ('.' = transparent). Provisional art: colors to validate. ---
 const SPR = {
@@ -251,12 +253,12 @@ const ROOMS = [
   [1, 1, 18, 13], // bodega
   [29, 1, 46, 13], // control
   [20, 1, 27, 23], // pasillo
-  [1, 15, 18, 25], // camarín
+  [1, 15, 18, 25], // camarin
   [29, 15, 46, 25], // estudio
   [21, 25, 26, 34], // salida
 ];
 const CAPTIVE = { x: 2 * T + 8, y: 12 * T + 8 }; // where kidnapped players are left (bodega)
-const walkable = (tx, ty) => !SOLID.includes(tileAt(tx, ty));
+const walkable = (tx, ty) => !blocks(tileAt(tx, ty));
 const BLOCK_SIGHT = '# x';
 
 // Line of sight: sample the segment every 4px against sight-blocking tiles.
@@ -315,6 +317,150 @@ function sfxScream(scene) {
 
 const NPC_TINT = { p: 0x6fa8ff, m: 0x9fe070, c: 0xff9ad0 };
 
+function tone(scene, f, dur = 0.08, type = 'square', vol = 0.06) {
+  const ctx = scene.sound.context;
+  if (!ctx) return;
+  const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.value = f;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start(t);
+  o.stop(t + dur);
+}
+const ok = (sc) => tone(sc, 880, 0.08);
+const bad = (sc) => tone(sc, 110, 0.25, 'sawtooth', 0.08);
+const jingle = (sc) => [523, 659, 784, 1047].forEach((f, i) => sc.time.delayedCall(i * 90, () => tone(sc, f, 0.12)));
+
+// --- Tasks (minigames). Each runs in a panel over the player's half of the screen. ---
+// init(s) sets state; upd(s, p, dt, sc) returns true when solved; draw(g, s, sc) renders at panel center (0,0).
+const COLS = [0xff4040, 0x40a0ff, 0xffe040, 0x40ff80];
+const DIRS = ['U', 'R', 'D', 'L'];
+const pr = (p, k) => pressed(p.pre + k);
+const TASKS = {
+  wires: {
+    title: 'CABLES DEL ESTUDIO',
+    help: 'ARRIBA/ABAJO + 1: UNE LOS COLORES',
+    init: (s) => { s.r = Phaser.Utils.Array.Shuffle([0, 1, 2, 3]); s.cur = 0; s.side = 0; s.pick = -1; s.done = []; },
+    upd(s, p, dt, sc) {
+      if (pr(p, 'U')) s.cur = (s.cur + 3) % 4;
+      if (pr(p, 'D')) s.cur = (s.cur + 1) % 4;
+      if (pr(p, '1')) {
+        if (!s.side) {
+          if (!s.done.includes(s.cur)) { s.pick = s.cur; s.side = 1; ok(sc); }
+        } else {
+          if (s.r[s.cur] === s.pick && !s.done.includes(s.pick)) { s.done.push(s.pick); ok(sc); } else bad(sc);
+          s.side = 0;
+        }
+      }
+      return s.done.length === 4;
+    },
+    draw(g, s) {
+      for (let i = 0; i < 4; i++) {
+        g.fillStyle(COLS[i]).fillRect(-130, -70 + i * 40, 24, 16);
+        g.fillStyle(COLS[s.r[i]]).fillRect(106, -70 + i * 40, 24, 16);
+      }
+      g.lineStyle(4, 0xffffff);
+      for (const c of s.done) g.lineStyle(4, COLS[c]).lineBetween(-106, -62 + c * 40, 106, -62 + s.r.indexOf(c) * 40);
+      if (s.side) g.lineStyle(2, COLS[s.pick]).lineBetween(-106, -62 + s.pick * 40, 100, -62 + s.cur * 40);
+      g.lineStyle(2, 0xffffff).strokeRect(s.side ? 102 : -134, -74 + s.cur * 40, 32, 24);
+    },
+  },
+  tune: {
+    title: 'SINTONIZAR LA SENAL',
+    help: 'IZQ/DER: MANTEN LA AGUJA EN VERDE',
+    init: (s) => { s.x = 0.5; s.v = 0; s.t = 0; s.ph = 0; },
+    upd(s, p, dt) {
+      s.ph += dt;
+      s.v = (s.v + (Math.random() - 0.5) * dt * 3) * 0.98;
+      const push = ((held[p.pre + 'R'] ? 1 : 0) - (held[p.pre + 'L'] ? 1 : 0)) * dt * 0.8;
+      s.x = Phaser.Math.Clamp(s.x + s.v * dt + push, 0, 1);
+      s.c = 0.5 + 0.3 * Math.sin(s.ph * 0.7);
+      if (Math.abs(s.x - s.c) < 0.1) s.t += dt;
+      return s.t >= 3;
+    },
+    draw(g, s) {
+      g.fillStyle(0x222222).fillRect(-140, -20, 280, 30);
+      g.fillStyle(0x30a050).fillRect(-140 + (s.c - 0.1) * 280, -20, 56, 30);
+      g.fillStyle(0xffffff).fillRect(-141 + s.x * 280, -28, 3, 46);
+      g.fillStyle(0xe1ff00).fillRect(-140, 40, (Math.min(s.t, 3) / 3) * 280, 8);
+    },
+  },
+  simon: {
+    title: 'CONSOLA DE EFECTOS',
+    help: 'MIRA Y REPITE CON EL JOYSTICK',
+    init: (s) => { s.seq = Array.from({ length: 6 }, () => Phaser.Math.Between(0, 3)); s.n = 4; s.i = 0; s.show = -0.5; s.lit = -1; s.lt = 0; },
+    upd(s, p, dt, sc) {
+      if (s.show !== null) {
+        s.show += dt;
+        const k = Math.floor(s.show / 0.5);
+        const lit = s.show >= 0 && k < s.n && s.show % 0.5 < 0.35 ? s.seq[k] : -1;
+        if (lit >= 0 && lit !== s.lit) tone(sc, 300 + lit * 120, 0.2);
+        s.lit = lit;
+        if (k >= s.n) { s.show = null; s.i = 0; }
+        return false;
+      }
+      s.lt -= dt;
+      if (s.lt <= 0) s.lit = -1;
+      for (let d = 0; d < 4; d++) {
+        if (!pr(p, DIRS[d])) continue;
+        s.lit = d;
+        s.lt = 0.2;
+        if (d === s.seq[s.i]) {
+          tone(sc, 300 + d * 120, 0.15);
+          if (++s.i === s.n) { if (++s.n > 6) return true; s.show = -0.6; }
+        } else { bad(sc); s.show = -0.6; }
+      }
+      return false;
+    },
+    draw(g, s) {
+      [[0, -55], [55, 0], [0, 55], [-55, 0]].forEach(([x, y], d) => {
+        g.fillStyle(COLS[d], s.lit === d ? 1 : 0.25).fillRect(x - 22, y - 22, 44, 44);
+      });
+      for (let i = 0; i < 6; i++) g.fillStyle(i < s.n - 1 ? 0xe1ff00 : 0x333333).fillRect(-50 + i * 18, 95, 10, 6);
+    },
+  },
+  lights: {
+    title: 'CALIBRAR LOS FOCOS',
+    help: '1 CUANDO LA BARRA ESTE AL CENTRO (x3)',
+    init: (s) => { s.x = 0; s.d = 1; s.sp = 0.8; s.h = 0; },
+    upd(s, p, dt, sc) {
+      s.x += s.d * s.sp * dt;
+      if (s.x > 1 || s.x < 0) { s.d *= -1; s.x = Phaser.Math.Clamp(s.x, 0, 1); }
+      if (pr(p, '1')) {
+        if (Math.abs(s.x - 0.5) < 0.07) { s.h++; s.sp *= 1.3; ok(sc); } else { s.h = 0; bad(sc); }
+      }
+      return s.h >= 3;
+    },
+    draw(g, s) {
+      g.fillStyle(0x222222).fillRect(-140, -15, 280, 30);
+      g.fillStyle(0x30a050).fillRect(-20, -15, 40, 30);
+      g.fillStyle(0xffffff).fillRect(-142 + s.x * 280, -24, 4, 48);
+      for (let i = 0; i < 3; i++) g.fillStyle(i < s.h ? 0xe1ff00 : 0x333333).fillCircle(-30 + i * 30, 50, 8);
+    },
+  },
+  gen: {
+    title: 'GENERADOR (ENTRE LOS DOS)',
+    help: 'CADA UNO EN UNA PALANCA: ALTERNEN 1',
+    init() {},
+    upd(s, p, dt, sc) {
+      const G = sc.gen;
+      if (G.at[0] && G.at[1] && pr(p, '1')) {
+        if (G.turn === p.lever) { G.fill += 0.06; G.turn = 1 - p.lever; tone(sc, 200 + G.fill * 400, 0.06); } else bad(sc);
+      }
+      return G.fill >= 1;
+    },
+    draw(g, s, sc) {
+      const G = sc.gen;
+      g.fillStyle(0x222222).fillRect(-140, -10, 280, 24);
+      g.fillStyle(0xe1ff00).fillRect(-140, -10, Math.min(G.fill, 1) * 280, 24);
+      g.fillStyle(G.at[0] && G.at[1] ? 0x40ff80 : 0xff4040).fillCircle(0, 50, 8);
+    },
+  },
+};
+const TIME = 300; // seconds until "on air"
+
 // --- Tulio tuning (px/s, px, s) ---
 const TU = { patrol: 55, investigate: 70, chase: 92, search: 60, view: 6 * T, fov: Math.PI * 70 / 180, lose: 1.5, searchT: 5 };
 const NOISE_R = 10 * T;
@@ -330,8 +476,12 @@ class Play extends Phaser.Scene {
     this.world = this.add.layer();
     this.ui = this.add.layer();
     this.pts = { T: [], H: [], N: [], K: [], E: [], npc: [] };
-    this.stats = { distract: 0, survived: 0 };
+    this.stats = { distract: 0, survived: 0, rescue: 0 };
     this.over = false;
+    DOOR = false;
+    this.left = TIME;
+    this.rage = false;
+    this.done = 0;
 
     // Static map baked into one texture; interactive props are separate images.
     const bg = this.w(this.add.renderTexture(0, 0, MW * T, MH * T).setOrigin(0));
@@ -379,9 +529,11 @@ class Play extends Phaser.Scene {
 
     this.ui.add(this.add.rectangle(W / 2, H / 2, 2, H, 0xe1ff00));
     this.txt(W / 4, 8, 'P1 BODOQUE', '#ff7a7a');
-    this.txt((W * 3) / 4, 8, 'P2 JUANÍN', '#f0b030');
+    this.txt((W * 3) / 4, 8, 'P2 JUAN\u00cdN', '#f0b030');
     this.clock = this.txt(W / 2, H - 24, 'AL AIRE EN 5:00', '#e1ff00');
     this.hints = this.players.map((p) => this.txt(W / 4 + p.i * (W / 2), H - 48, '', '#b8c48d'));
+    this.codeTxt = this.players.map((p) => this.txt(W / 4 + p.i * (W / 2), 28, '', '#e1ff00'));
+    this.setupTasks();
   }
 
   txt(x, y, s, col, size = 14) {
@@ -392,7 +544,7 @@ class Play extends Phaser.Scene {
 
   makePlayer(key, at, pre, i) {
     const spr = this.w(this.add.sprite(at.x, at.y, key + '0').setDepth(10));
-    return { key, spr, pre, i, step: 0, hide: null, seenHide: false, caught: false };
+    return { key, spr, pre, i, step: 0, hide: null, seenHide: false, caught: false, out: false, res: 0, task: null };
   }
 
   // Axis-separated move with a small feet hitbox so players slide along walls.
@@ -414,7 +566,8 @@ class Play extends Phaser.Scene {
 
   // --- Tulio perception ---
   canSee(p) {
-    if (p.hide || p.caught) return false;
+    if (p.hide || p.caught || p.out) return false;
+    if (this.rage) return true; // on air: Tulio hunts everyone in the open
     const t = this.tu.spr, s = p.spr;
     const d = Math.hypot(s.x - t.x, s.y - t.y);
     if (d > TU.view) return false;
@@ -470,6 +623,8 @@ class Play extends Phaser.Scene {
 
   capture(p) {
     const u = this.tu;
+    this.closeTask(p);
+    p.res = 0;
     p.caught = true;
     p.hide = null;
     p.seenHide = false;
@@ -484,14 +639,7 @@ class Play extends Phaser.Scene {
     this.ui.add(f);
     this.tweens.add({ targets: f, scale: 24, duration: 600, ease: 'Quad.easeIn', onComplete: () => this.tweens.add({ targets: f, alpha: 0, duration: 300, onComplete: () => f.destroy() }) });
     sfxScream(this);
-    if (this.players.every((q) => q.caught)) this.lose();
-  }
-
-  lose() {
-    this.over = true;
-    this.ui.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75));
-    this.txt(W / 2, H / 2 - 40, 'FUERA DEL AIRE', '#ff4040', 40);
-    this.txt(W / 2, H / 2 + 20, 'START PARA REINTENTAR', '#e1ff00', 16);
+    if (this.players.every((q) => q.caught)) this.end(false);
   }
 
   updateTulio(dt) {
@@ -507,10 +655,10 @@ class Play extends Phaser.Scene {
       this.setState('chase');
     }
 
-    let speed = TU[u.st];
+    let speed = TU[u.st] * (1 + 0.05 * this.done);
     if (u.st === 'chase') {
       const p = u.target;
-      if (p.caught) { this.setState('patrol'); u.path = []; }
+      if (p.caught || p.out) { this.setState('patrol'); u.path = []; }
       else if (p.hide && p.seenHide) {
         // Saw them hide: walk to the spot and pull them out.
         if (Math.hypot(p.hide.x - t.x, p.hide.y - t.y) < T * 1.3) return this.capture(p);
@@ -575,43 +723,191 @@ class Play extends Phaser.Scene {
     u.mark.setPosition(t.x, t.y - 14);
   }
 
+
+  // --- Tasks, keypad and panels ---
+  setupTasks() {
+    const A = Phaser.Utils.Array;
+    this.code = [0, 1, 2, 3].map(() => Phaser.Math.Between(0, 9));
+    this.got = [0, 0, 0, 0];
+    const slots = A.Shuffle([0, 1, 2, 3]);
+    // The co-op generator always uses the two bodega stations; the rest get 3 random tasks.
+    const bod = this.pts.T.filter((t) => t.x < 19 * T && t.y < 14 * T);
+    const rest = A.Shuffle(this.pts.T.filter((t) => !bod.includes(t)));
+    const names = A.Shuffle(['wires', 'tune', 'simon', 'lights']).slice(0, 3);
+    this.tasks = [{ name: 'gen', slot: slots[0], pts: bod }, ...names.map((n, i) => ({ name: n, slot: slots[i + 1], pts: [rest[i]] }))];
+    this.gen = { fill: 0, at: [null, null], turn: 0 };
+    this.pts.T.forEach((t) => t.img.setTint(0x303030));
+    const live = [];
+    for (const k of this.tasks) for (const pt of k.pts) { pt.task = k; pt.img.clearTint(); live.push(pt.img); }
+    this.tweens.add({ targets: live, alpha: 0.55, yoyo: true, repeat: -1, duration: 700 });
+
+    for (const p of this.players) {
+      const c = this.add.container(W / 4 + p.i * (W / 2), H / 2).setVisible(false);
+      const t = (y, size, col) => this.add.text(0, y, '', { fontFamily: 'monospace', fontSize: size + 'px', color: col, align: 'center' }).setOrigin(0.5);
+      p.pan = { c, g: this.add.graphics(), title: t(-118, 16, '#ffffff'), info: t(-88, 14, '#e1ff00'), help: t(118, 12, '#b8c48d') };
+      c.add([this.add.rectangle(0, 0, 360, 280, 0x000000).setStrokeStyle(2, 0xffffff), p.pan.g, p.pan.title, p.pan.info, p.pan.help]);
+      this.ui.add(c);
+    }
+    this.refreshCode();
+  }
+
+  refreshCode() {
+    const s = '[ ' + this.code.map((d, i) => (this.got[i] ? d : '_')).join(' ') + ' ]';
+    this.codeTxt.forEach((t) => t.setText(s));
+  }
+
+  openTask(p, k, pt) {
+    p.task = k;
+    p.s = {};
+    p.msg = 0;
+    if (k.name === 'pad') { p.s.w = [0, 0, 0, 0]; p.s.c = 0; } else TASKS[k.name].init(p.s);
+    if (k.name === 'gen') { p.lever = k.pts.indexOf(pt); this.gen.at[p.lever] = p; }
+    const def = TASKS[k.name] || { title: 'PUERTA DE EMERGENCIA', help: 'JOYSTICK: ELIGE EL CODIGO / 1: PROBAR' };
+    p.pan.title.setText(def.title);
+    p.pan.help.setText(def.help + '\n2: SALIR');
+    p.pan.info.setText('').setFontSize(14).setY(-88);
+    p.pan.g.clear();
+    p.pan.c.setVisible(true);
+  }
+
+  closeTask(p) {
+    if (!p.task) return;
+    if (p.task.name === 'gen' && this.gen.at[p.lever] === p) this.gen.at[p.lever] = null;
+    p.task = null;
+    p.pan.c.setVisible(false);
+  }
+
+  // Show a message in the panel for a moment, then close it.
+  flash(p, s, col = '#e1ff00') {
+    p.msg = 1.4;
+    p.pan.g.clear();
+    p.pan.info.setText(s).setFontSize(26).setY(0).setColor(col);
+  }
+
+  finishTask(k) {
+    k.done = true;
+    this.got[k.slot] = 1;
+    this.done++;
+    jingle(this);
+    for (const pt of k.pts) { this.tweens.killTweensOf(pt.img); pt.img.setAlpha(1).setTint(0x505050); }
+    this.refreshCode();
+    for (const p of this.players) if (p.task === k) this.flash(p, `ESCENA ${k.slot + 1}: ${this.code[k.slot]}`);
+    if (k.name === 'gen') this.noise(k.pts[0].x, k.pts[0].y, 12 * T); // the generator is loud
+  }
+
+  updatePad(p) {
+    const s = p.s;
+    if (pr(p, 'L')) s.c = (s.c + 3) % 4;
+    if (pr(p, 'R')) s.c = (s.c + 1) % 4;
+    if (pr(p, 'U')) s.w[s.c] = (s.w[s.c] + 1) % 10;
+    if (pr(p, 'D')) s.w[s.c] = (s.w[s.c] + 9) % 10;
+    p.pan.info.setText(s.w.map((d, i) => (i === s.c ? `[${d}]` : ` ${d} `)).join(' ')).setFontSize(28).setY(-10);
+    if (!pr(p, '1')) return;
+    if (s.w.join() === this.code.join()) {
+      DOOR = true;
+      this.pts.E.forEach((e) => e.img.setVisible(false));
+      jingle(this);
+      this.flash(p, 'PUERTA ABIERTA');
+    } else {
+      // Wrong code sets off the alarm: Tulio comes running.
+      [0, 1, 2, 3].forEach((i) => this.time.delayedCall(i * 200, () => tone(this, i % 2 ? 660 : 880, 0.18, 'square', 0.07)));
+      const k = this.pts.K[0];
+      this.noise(k.x, k.y, 14 * T);
+      this.flash(p, 'CODIGO INCORRECTO', '#ff4040');
+    }
+  }
+
+  updatePanel(p, dt) {
+    if (p.msg > 0) {
+      if ((p.msg -= dt) <= 0) this.closeTask(p);
+      return;
+    }
+    if (pr(p, '2')) return this.closeTask(p); // leaving resets the task
+    if (p.task.name === 'pad') return this.updatePad(p);
+    const def = TASKS[p.task.name];
+    if (def.upd(p.s, p, dt, this)) return this.finishTask(p.task);
+    def.draw(p.pan.g.clear(), p.s, this);
+    if (p.task.name === 'gen') {
+      const G = this.gen;
+      p.pan.info.setText(!(G.at[0] && G.at[1]) ? 'ESPERANDO A TU COMPANERO' : G.turn === p.lever ? 'TU TURNO: 1' : 'ESPERA...');
+    }
+  }
+
   updatePlayer(p, dt) {
     let hint = '';
-    if (!p.caught) {
-      if (p.hide) {
-        hint = '1: SALIR';
-        if (pressed(p.pre + '1')) { p.hide = null; p.seenHide = false; p.spr.setVisible(true); }
-      } else {
-        let dx = (held[p.pre + 'R'] ? 1 : 0) - (held[p.pre + 'L'] ? 1 : 0);
-        let dy = (held[p.pre + 'D'] ? 1 : 0) - (held[p.pre + 'U'] ? 1 : 0);
-        if (dx && dy) { dx *= Math.SQRT1_2; dy *= Math.SQRT1_2; }
-        this.move(p, dx * SPEED * dt, dy * SPEED * dt);
-        if (dx) p.spr.setFlipX(dx < 0);
-        if (dx || dy) p.step += dt;
-        p.spr.setTexture(p.key + (Math.floor(p.step * 6) % 2));
+    if (p.out) hint = 'AFUERA';
+    else if (p.caught) hint = 'SECUESTRADO';
+    else if (p.task) { this.updatePanel(p, dt); hint = p.task ? 'EN TAREA: VISIBLE' : ''; }
+    else if (p.hide) {
+      hint = '1: SALIR';
+      if (pr(p, '1')) { p.hide = null; p.seenHide = false; p.spr.setVisible(true); }
+    } else {
+      let dx = (held[p.pre + 'R'] ? 1 : 0) - (held[p.pre + 'L'] ? 1 : 0);
+      let dy = (held[p.pre + 'D'] ? 1 : 0) - (held[p.pre + 'U'] ? 1 : 0);
+      if (dx && dy) { dx *= Math.SQRT1_2; dy *= Math.SQRT1_2; }
+      this.move(p, dx * SPEED * dt, dy * SPEED * dt);
+      if (dx) p.spr.setFlipX(dx < 0);
+      if (dx || dy) p.step += dt;
+      p.spr.setTexture(p.key + (Math.floor(p.step * 6) % 2));
 
-        const h = this.near(this.pts.H, p.spr, T * 1.4);
-        const n = this.near(this.pts.N.filter((o) => !o.used), p.spr, T * 2);
-        if (h && !this.players.some((q) => q.hide === h)) {
-          hint = '1: ESCONDERSE';
-          if (pressed(p.pre + '1')) {
-            // Hiding in plain sight of a chasing Tulio does not work.
-            p.seenHide = this.tu.st === 'chase' && this.tu.target === p && this.canSee(p);
-            p.hide = h;
-            p.spr.setVisible(false);
-          }
-        }
-        if (n) {
-          hint += (hint ? '  ' : '') + '2: HACER RUIDO';
-          if (pressed(p.pre + '2')) {
-            n.used = true;
-            n.img.setTint(0x444444);
-            this.noise(n.x, n.y, NOISE_R);
-          }
+      if (DOOR && p.spr.y >= 35 * T) { p.out = true; p.spr.setVisible(false); return this.checkWin(); }
+
+      const mate = this.players[1 - p.i];
+      const rescue = mate.caught && Math.hypot(mate.spr.x - p.spr.x, mate.spr.y - p.spr.y) < T * 1.5;
+      const k = !DOOR && this.near(this.pts.K, p.spr, T * 1.5);
+      const t = this.near(this.pts.T.filter((o) => o.task && !o.task.done && !(o.task.name === 'gen' && this.gen.at[o.task.pts.indexOf(o)])), p.spr, T * 1.5);
+      const h = this.near(this.pts.H.filter((o) => !this.players.some((q) => q.hide === o)), p.spr, T * 1.4);
+      const n = this.near(this.pts.N.filter((o) => !o.used), p.spr, T * 2);
+      if (rescue) {
+        hint = 'MANTEN 1: RESCATAR';
+        if (held[p.pre + '1']) {
+          p.res += dt;
+          hint = `RESCATANDO ${Math.floor((p.res / 3) * 100)}%`;
+          if (p.res >= 3) { p.res = 0; mate.caught = false; mate.spr.clearTint(); this.stats.rescue++; jingle(this); }
+        } else p.res = 0;
+      } else if (k) {
+        hint = '1: TECLADO';
+        if (pr(p, '1')) this.openTask(p, { name: 'pad' });
+      } else if (t) {
+        hint = '1: TAREA';
+        if (pr(p, '1')) this.openTask(p, t.task, t);
+      } else if (h) {
+        hint = '1: ESCONDERSE';
+        if (pr(p, '1')) {
+          // Hiding in plain sight of a chasing Tulio does not work.
+          p.seenHide = this.tu.st === 'chase' && this.tu.target === p && this.canSee(p);
+          p.hide = h;
+          p.spr.setVisible(false);
         }
       }
-    } else hint = 'SECUESTRADO';
+      if (n) {
+        hint += (hint ? '  ' : '') + '2: HACER RUIDO';
+        if (pr(p, '2')) {
+          n.used = true;
+          n.img.setTint(0x444444);
+          this.noise(n.x, n.y, NOISE_R);
+        }
+      }
+    }
     this.hints[p.i].setText(hint);
+  }
+
+  checkWin() {
+    if (this.players.every((q) => q.out || q.caught)) this.end(true);
+  }
+
+  end(win) {
+    this.over = true;
+    const st = this.stats;
+    const lost = this.players.filter((q) => q.caught).length;
+    let score = this.done * 200 + st.survived * 500 + st.distract * 300 + st.rescue * 500;
+    if (win) score += Math.max(0, Math.ceil(this.left)) * 10 + 2000 - lost * 2000; // leaving a partner behind costs
+    this.score = Math.max(0, score);
+    this.players.forEach((p) => this.closeTask(p));
+    this.ui.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.8));
+    this.txt(W / 2, 170, win ? '\u00a1SALIERON AL AIRE!' : 'FUERA DEL AIRE', win ? '#e1ff00' : '#ff4040', 36);
+    this.txt(W / 2, 250, `TAREAS ${this.done}/4   DISTRACCIONES ${st.distract}\nPERSECUCIONES SOBREVIVIDAS ${st.survived}   RESCATES ${st.rescue}\n\nPUNTAJE ${this.score}`, '#ffffff', 16);
+    this.txt(W / 2, 400, 'START PARA REINTENTAR', '#e1ff00', 16);
   }
 
   update(time, delta) {
@@ -619,12 +915,23 @@ class Play extends Phaser.Scene {
     if (this.over) {
       if (pressed('START1') || pressed('START2')) this.scene.restart();
     } else {
+      this.left -= dt;
+      if (this.left <= 0 && !this.rage) {
+        this.rage = true; // on air: Tulio hunts whoever is in the open
+        this.clock.setText('\u00a1AL AIRE!').setColor('#ff4040');
+      } else if (!this.rage) {
+        const s = Math.ceil(this.left);
+        this.clock.setText(`AL AIRE EN ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
+      }
+      const G = this.gen;
+      if (!(G.at[0] && G.at[1])) G.fill = Math.max(0, G.fill - 0.1 * dt); // lever released: generator winds down
       for (const p of this.players) this.updatePlayer(p, dt);
-      this.updateTulio(dt);
+      if (!this.over) this.updateTulio(dt);
     }
 
     this.dark.fill(0x000000, 0.92);
     for (const p of this.players) {
+      if (p.out) continue;
       const k = p.hide ? 'lightS' : 'light', r = p.hide ? T * 1.5 : T * 3;
       this.dark.erase(k, Math.round(p.spr.x) - r, Math.round(p.spr.y) - r);
     }

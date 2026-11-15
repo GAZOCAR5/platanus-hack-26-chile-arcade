@@ -30,7 +30,12 @@ for (const [code, keys] of Object.entries(CABINET_KEYS)) {
 const held = Object.create(null);
 let prev = Object.create(null);
 const keyCode = (e) => KEY_TO_ARCADE[e.key.length === 1 ? e.key.toLowerCase() : e.key];
-window.addEventListener('keydown', (e) => { const c = keyCode(e); if (c) held[c] = true; });
+window.addEventListener('keydown', (e) => {
+  const c = keyCode(e);
+  if (c) held[c] = true;
+  const ac = window.AC;
+  if (ac && ac.state === 'suspended') ac.resume();
+});
 window.addEventListener('keyup', (e) => { const c = keyCode(e); if (c) held[c] = false; });
 const pressed = (c) => held[c] && !prev[c];
 
@@ -460,6 +465,42 @@ const TASKS = {
   },
 };
 const TIME = 300; // seconds until "on air"
+const SCORE_KEY = '31mdt:scores';
+const midi = (n) => 440 * 2 ** ((n - 69) / 12);
+// Original eerie loop in A minor: 16 eighth-note steps, 0 = rest.
+const BASS = [45, 0, 45, 0, 40, 0, 40, 0, 41, 0, 41, 0, 40, 0, 44, 0];
+const MEL = [69, 0, 0, 72, 0, 71, 0, 0, 68, 0, 0, 0, 64, 0, 0, 0];
+function music(sc, dt, fast) {
+  const m = sc.mus || (sc.mus = { t: 0, i: 0 });
+  if ((m.t -= dt) > 0) return;
+  const d = fast ? 0.17 : 0.32;
+  m.t = d;
+  const b = BASS[m.i], n = MEL[m.i];
+  if (b) tone(sc, midi(b), d * 0.9, 'triangle', 0.06);
+  if (n) tone(sc, midi(n), d * 1.6, 'square', 0.018);
+  m.i = (m.i + 1) % 16;
+}
+
+// Validates whatever comes back from storage: the shape may have changed between releases.
+async function loadScores() {
+  try {
+    const r = await getStorage().get(SCORE_KEY);
+    const v = r && r.found && Array.isArray(r.value) ? r.value : [];
+    return v.filter((e) => e && typeof e.n === 'string' && Number.isFinite(e.s)).slice(0, 5);
+  } catch { return []; }
+}
+
+// NPC lines: the famous quotes are placeholders for the user to fill in; the second line is a gameplay hint.
+const NPC_INFO = {
+  p: { name: 'POLICARPO', pitch: 520, lines: ['[FRASE C\u00c9LEBRE DE POLICARPO]', 'El generador de la bodega mete mucho ruido. Tulio lo oye.'] },
+  m: { name: 'MARIO HUGO', pitch: 760, lines: ['[FRASE C\u00c9LEBRE DE MARIO HUGO]', 'Si te equivocas de c\u00f3digo en la puerta, suena la alarma.'] },
+  c: { name: 'CALCET\u00cdN CON ROMBOS MAN', pitch: 380, lines: ['[FRASE C\u00c9LEBRE DE CALCET\u00cdN CON ROMBOS MAN]', 'Esc\u00f3ndete antes de que te vea. Si te ve entrar, te saca.'] },
+};
+const INTRO = [
+  'Termin\u00f3 el noticiero. Se apagaron las luces.',
+  'Tulio cerr\u00f3 el set. Nadie se va hasta que \u00e9l lo diga.',
+  'Hagan las tareas, armen el c\u00f3digo y escapen.',
+];
 
 // --- Tulio tuning (px/s, px, s) ---
 const TU = { patrol: 55, investigate: 70, chase: 92, search: 60, view: 6 * T, fov: Math.PI * 70 / 180, lose: 1.5, searchT: 5 };
@@ -509,7 +550,7 @@ class Play extends Phaser.Scene {
       spr: this.w(this.add.sprite(tz.x, tz.y, 'tulio0').setDepth(10)),
       eyes: this.w(this.add.image(tz.x, tz.y, 'eyes').setDepth(101)),
       mark: this.w(this.add.text(tz.x, tz.y - 14, '', { fontFamily: 'monospace', fontSize: '10px', color: '#ff4040' }).setOrigin(0.5).setDepth(102)),
-      st: 'patrol', path: [], face: 0, wait: 0, step: 0, target: null, last: null, lost: 0, timer: 0, repath: 0, chased: false, calm: 0,
+      st: 'patrol', path: [], face: 0, wait: 0, step: 0, target: null, last: null, lost: 0, timer: 0, repath: 0, chased: false, calm: 0, foot: 0, hb: 0,
     };
 
     // Darkness: redrawn each frame; lights erased around players and Tulio's lantern cone.
@@ -534,6 +575,21 @@ class Play extends Phaser.Scene {
     this.hints = this.players.map((p) => this.txt(W / 4 + p.i * (W / 2), H - 48, '', '#b8c48d'));
     this.codeTxt = this.players.map((p) => this.txt(W / 4 + p.i * (W / 2), 28, '', '#e1ff00'));
     this.setupTasks();
+    for (const p of this.players) {
+      const c = this.add.container(W / 4 + p.i * (W / 2), H - 140).setVisible(false);
+      p.dlg = {
+        c,
+        img: this.add.image(-148, 0, 'npc').setScale(3),
+        name: this.add.text(-112, -36, '', { fontFamily: 'monospace', fontSize: '12px', color: '#e1ff00' }),
+        body: this.add.text(-112, -18, '', { fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', wordWrap: { width: 270 } }),
+      };
+      c.add([this.add.rectangle(0, 0, 380, 100, 0x000000).setStrokeStyle(2, 0xffffff), p.dlg.img, p.dlg.name, p.dlg.body]);
+      this.ui.add(c);
+    }
+    this.intro = { i: 0, n: 0, box: this.add.container(W / 2, H / 2) };
+    this.intro.txt = this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff', align: 'center', wordWrap: { width: 560 } }).setOrigin(0.5);
+    this.intro.box.add([this.add.rectangle(0, 0, 620, 130, 0x000000).setStrokeStyle(2, 0xffffff), this.intro.txt, this.add.text(0, 48, '1: SEGUIR', { fontFamily: 'monospace', fontSize: '11px', color: '#b8c48d' }).setOrigin(0.5)]);
+    this.ui.add(this.intro.box);
   }
 
   txt(x, y, s, col, size = 14) {
@@ -624,6 +680,7 @@ class Play extends Phaser.Scene {
   capture(p) {
     const u = this.tu;
     this.closeTask(p);
+    this.endTalk(p);
     p.res = 0;
     p.caught = true;
     p.hide = null;
@@ -721,6 +778,19 @@ class Play extends Phaser.Scene {
     t.setTexture('tulio' + (Math.floor(u.step * 5) % 2));
     u.eyes.setPosition(t.x, t.y).setFlipX(t.flipX);
     u.mark.setPosition(t.x, t.y - 14);
+
+    // Audio warnings: footsteps by distance, heartbeat when he is close.
+    const alive = this.players.filter((p) => !p.caught && !p.out);
+    const d = alive.length ? Math.min(...alive.map((p) => Math.hypot(p.spr.x - t.x, p.spr.y - t.y))) : 1e9;
+    if (nx && (u.foot -= dt) <= 0) {
+      u.foot = u.st === 'chase' ? 0.25 : 0.42;
+      if (d < 12 * T) tone(this, 70, 0.07, 'sine', 0.15 * (1 - d / (12 * T)));
+    }
+    if ((u.hb -= dt) <= 0 && d < 5 * T) {
+      u.hb = 0.35 + (d / (5 * T)) * 0.6;
+      tone(this, 55, 0.08, 'sine', 0.12);
+      this.time.delayedCall(140, () => tone(this, 50, 0.08, 'sine', 0.09));
+    }
   }
 
 
@@ -838,6 +908,7 @@ class Play extends Phaser.Scene {
     if (p.out) hint = 'AFUERA';
     else if (p.caught) hint = 'SECUESTRADO';
     else if (p.task) { this.updatePanel(p, dt); hint = p.task ? 'EN TAREA: VISIBLE' : ''; }
+    else if (p.talk) { this.updateTalk(p, dt); hint = '1: SEGUIR'; }
     else if (p.hide) {
       hint = '1: SALIR';
       if (pr(p, '1')) { p.hide = null; p.seenHide = false; p.spr.setVisible(true); }
@@ -856,6 +927,7 @@ class Play extends Phaser.Scene {
       const rescue = mate.caught && Math.hypot(mate.spr.x - p.spr.x, mate.spr.y - p.spr.y) < T * 1.5;
       const k = !DOOR && this.near(this.pts.K, p.spr, T * 1.5);
       const t = this.near(this.pts.T.filter((o) => o.task && !o.task.done && !(o.task.name === 'gen' && this.gen.at[o.task.pts.indexOf(o)])), p.spr, T * 1.5);
+      const npc = this.near(this.pts.npc, p.spr, T * 1.5);
       const h = this.near(this.pts.H.filter((o) => !this.players.some((q) => q.hide === o)), p.spr, T * 1.4);
       const n = this.near(this.pts.N.filter((o) => !o.used), p.spr, T * 2);
       if (rescue) {
@@ -871,6 +943,9 @@ class Play extends Phaser.Scene {
       } else if (t) {
         hint = '1: TAREA';
         if (pr(p, '1')) this.openTask(p, t.task, t);
+      } else if (npc) {
+        hint = '1: HABLAR';
+        if (pr(p, '1')) this.startTalk(p, npc);
       } else if (h) {
         hint = '1: ESCONDERSE';
         if (pr(p, '1')) {
@@ -907,14 +982,105 @@ class Play extends Phaser.Scene {
     this.ui.add(this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.8));
     this.txt(W / 2, 170, win ? '\u00a1SALIERON AL AIRE!' : 'FUERA DEL AIRE', win ? '#e1ff00' : '#ff4040', 36);
     this.txt(W / 2, 250, `TAREAS ${this.done}/4   DISTRACCIONES ${st.distract}\nPERSECUCIONES SOBREVIVIDAS ${st.survived}   RESCATES ${st.rescue}\n\nPUNTAJE ${this.score}`, '#ffffff', 16);
-    this.txt(W / 2, 400, 'START PARA REINTENTAR', '#e1ff00', 16);
+    this.phase = 'wait';
+    loadScores().then((list) => {
+      this.scores = list;
+      if (this.score > 0 && (list.length < 5 || this.score > list[list.length - 1].s)) {
+        this.phase = 'name';
+        this.ini = { l: [0, 0, 0], c: 0 };
+        this.nameLbl = this.txt(W / 2, 350, 'NUEVO R\u00c9CORD: ESCRIBAN SUS INICIALES', '#ffffff', 14);
+        this.nameTxt = this.txt(W / 2, 375, '', '#e1ff00', 28);
+        this.drawName();
+      } else this.showRank();
+    });
+  }
+
+  // --- Dialogue (Undertale-style typed text with a blip per letter) ---
+  startTalk(p, npc) {
+    const info = NPC_INFO[npc.id];
+    p.talk = { info, i: 0, n: 0 };
+    p.dlg.img.setTint(NPC_TINT[npc.id]);
+    p.dlg.name.setText(info.name);
+    p.dlg.body.setText('');
+    p.dlg.c.setVisible(true);
+  }
+
+  endTalk(p) {
+    p.talk = null;
+    if (p.dlg) p.dlg.c.setVisible(false);
+  }
+
+  // Types `line` into `txt` at 30 chars/s; returns true once fully shown.
+  type(o, line, txt, dt, pitch) {
+    const before = Math.floor(o.n);
+    o.n = Math.min(line.length, o.n + 30 * dt);
+    const now = Math.floor(o.n);
+    if (now > before && line[now - 1] !== ' ') tone(this, pitch, 0.03, 'square', 0.035);
+    txt.setText(line.slice(0, now));
+    return now >= line.length;
+  }
+
+  updateTalk(p, dt) {
+    const tk = p.talk, lines = tk.info.lines;
+    const full = this.type(tk, lines[tk.i], p.dlg.body, dt, tk.info.pitch);
+    if (!pr(p, '1')) return;
+    if (!full) { tk.n = lines[tk.i].length; return; }
+    if (++tk.i >= lines.length) return this.endTalk(p);
+    tk.n = 0;
+  }
+
+  updateIntro(dt) {
+    const o = this.intro;
+    const full = this.type(o, INTRO[o.i], o.txt, dt, 300);
+    const go = ['P1_1', 'P2_1', 'START1', 'START2'].some(pressed);
+    if (!go) return;
+    if (!full) { o.n = INTRO[o.i].length; return; }
+    if (++o.i < INTRO.length) { o.n = 0; return; }
+    o.box.destroy();
+    this.intro = null;
+  }
+
+  // --- End screen: initials and top 5 ---
+  drawName() {
+    const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    this.nameTxt.setText(this.ini.l.map((c, i) => (i === this.ini.c ? `[${A[c]}]` : ` ${A[c]} `)).join(''));
+  }
+
+  showRank() {
+    this.phase = 'rank';
+    if (this.nameTxt) { this.nameTxt.destroy(); this.nameLbl.destroy(); }
+    const list = this.scores;
+    const rows = list.map((e, i) => `${i + 1}. ${e.n}  ${String(e.s).padStart(6, ' ')}`).join('\n');
+    this.txt(W / 2, 350, 'MEJORES EQUIPOS\n' + (rows || '---'), '#ffffff', 14);
+    this.txt(W / 2, 500, 'START: VOLVER AL T\u00cdTULO', '#e1ff00', 16);
+  }
+
+  updateEnd() {
+    if (this.phase === 'rank') {
+      if (pressed('START1') || pressed('START2')) this.scene.start('title');
+      return;
+    }
+    if (this.phase !== 'name') return;
+    const o = this.ini, any = (k) => pressed('P1_' + k) || pressed('P2_' + k);
+    if (any('U')) o.l[o.c] = (o.l[o.c] + 1) % 26;
+    if (any('D')) o.l[o.c] = (o.l[o.c] + 25) % 26;
+    if (any('L')) o.c = Math.max(0, o.c - 1);
+    if (any('R') || any('1')) o.c++;
+    if (o.c > 2) {
+      const n = o.l.map((c) => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[c]).join('');
+      this.scores = [...this.scores, { n, s: this.score }].sort((a, b) => b.s - a.s).slice(0, 5);
+      getStorage().set(SCORE_KEY, this.scores).catch(() => {});
+      return this.showRank();
+    }
+    this.drawName();
   }
 
   update(time, delta) {
     const dt = Math.min(delta, 50) / 1000;
-    if (this.over) {
-      if (pressed('START1') || pressed('START2')) this.scene.restart();
-    } else {
+    if (this.over) this.updateEnd();
+    else if (this.intro) this.updateIntro(dt);
+    else {
+      music(this, dt, this.tu.st === 'chase' || this.rage);
       this.left -= dt;
       if (this.left <= 0 && !this.rage) {
         this.rage = true; // on air: Tulio hunts whoever is in the open
@@ -943,6 +1109,37 @@ class Play extends Phaser.Scene {
   }
 }
 
+// --- Title scene ---
+class Title extends Phaser.Scene {
+  constructor() { super('title'); }
+
+  create() {
+    makeTextures(this);
+    window.AC = this.sound.context;
+    const t = (y, s, c, z) => this.add.text(W / 2, y, s, { fontFamily: 'monospace', fontSize: z + 'px', color: c, align: 'center' }).setOrigin(0.5);
+    const tulio = this.add.image(W / 2, 240, 'tulio0').setScale(10);
+    this.add.image(W / 2, 240, 'eyes').setScale(10);
+    // Lantern flicker: a black veil that breathes over Tulio.
+    const veil = this.add.rectangle(W / 2, 240, 200, 180, 0x000000, 0.6);
+    this.tweens.add({ targets: veil, alpha: 0.95, duration: 140, yoyo: true, repeat: -1, repeatDelay: 900 });
+    this.tweens.add({ targets: tulio, y: 244, duration: 1200, yoyo: true, repeat: -1 });
+    t(60, '31 MINUTOS DE TERROR', '#e1ff00', 40);
+    t(100, 'Escapen del set antes de que Tulio los encuentre', '#b8c48d', 14);
+    t(350, 'JOYSTICK: MOVER   1: ACCI\u00d3N / ESCONDERSE   2: RUIDO', '#b8c48d', 12);
+    const press = t(395, 'PRESIONA START', '#ffffff', 22);
+    this.tweens.add({ targets: press, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+    const rank = t(490, '', '#ffffff', 13);
+    loadScores().then((l) => rank.setText(l.length ? 'MEJORES EQUIPOS\n' + l.map((e, i) => `${i + 1}. ${e.n}  ${e.s}`).join('\n') : ''));
+    t(H - 14, 'Homenaje fan a 31 Minutos (Aplaplac). Juego no oficial.', '#666666', 11);
+  }
+
+  update(time, delta) {
+    music(this, delta / 1000, false);
+    if (pressed('START1') || pressed('START2')) this.scene.start('play');
+    prev = { ...held };
+  }
+}
+
 new Phaser.Game({
   type: Phaser.AUTO,
   width: W,
@@ -952,5 +1149,5 @@ new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [Play],
+  scene: [Title, Play],
 });

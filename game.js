@@ -100,14 +100,56 @@ function create() {
   s.WL = s.add.layer();
   s.UL = s.add.layer();
   createControls(s);
+  const logo = txt(s, W / 2, 110, 'TERREMOTO', 84, '#ffd23b').setOrigin(0.5);
+  const go = txt(s, W / 2, 262, 'START1  ·  1 JUGADOR        START2  ·  2 JUGADORES', 20, '#2ec4a0').setOrigin(0.5);
+  s.rankT = [1, 2].map((n) => txt(s, n == 1 ? 120 : 460, 330, '', 16).setLineSpacing(6));
   s.title = s.add.container(0, 0, [
-    txt(s, W / 2, 170, 'TERREMOTO', 72, '#ffd23b').setOrigin(0.5),
-    txt(s, W / 2, 250, 'Alerta sísmica: 60 segundos para bajar al bunker', 18).setOrigin(0.5),
-    txt(s, W / 2, 330, 'START1: 1 jugador   ·   START2: 2 jugadores', 20, '#2ec4a0').setOrigin(0.5),
-    txt(s, W / 2, 380, 'Joystick: moverse   B1: tomar   B2: soltar', 16, '#aaa').setOrigin(0.5),
+    logo,
+    txt(s, W / 2, 182, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con todo lo que puedas.', 16, '#ccc')
+      .setOrigin(0.5).setAlign('center'),
+    go,
+    txt(s, 120, 300, 'RANKING 1P', 18, '#ffd23b'),
+    txt(s, 460, 300, 'RANKING 2P', 18, '#ffd23b'),
+    ...s.rankT,
+    txt(s, W / 2, 566, 'Joystick: moverse   B1: tomar   B2: soltar   ·   Platanus Hack 26', 13, '#777').setOrigin(0.5),
   ]);
   s.UL.add(s.title);
+  s.tweens.add({ targets: logo, x: { from: W / 2 - 3, to: W / 2 + 3 }, duration: 60, yoyo: true, repeat: -1, repeatDelay: 1800 });
+  s.tweens.add({ targets: go, alpha: 0.3, duration: 600, yoyo: true, repeat: -1 });
+  (RANK ? Promise.resolve(RANK) : loadRank()).then((r) => {
+    RANK = r;
+    if (s.rankT[0].active) s.rankT.forEach((t, i) => t.setText(rankLines(RANK[i + 1])));
+  });
 }
+
+// ---------- ranking (platanusArcadeStorage, con localStorage de respaldo) ----------
+
+const RK = 'terremoto-ranking-v1', RMAX = 8;
+let RANK = null;
+const store = () =>
+  window.platanusArcadeStorage || {
+    async get(k) {
+      const v = localStorage.getItem(k);
+      return v ? { found: true, value: JSON.parse(v) } : { found: false };
+    },
+    async set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+  };
+// El storage sobrevive a versiones viejas: validar la forma de cada fila.
+const okRow = (r) => r && typeof r.n == 'string' && r.n.length <= 3 && Number.isFinite(r.s) && Number.isFinite(r.d);
+const clean = (a) => (Array.isArray(a) ? a.filter(okRow).sort((x, y) => y.s - x.s).slice(0, RMAX) : []);
+
+async function loadRank() {
+  try {
+    const r = await store().get(RK), v = r && r.found && r.value;
+    return { 1: clean(v && v[1]), 2: clean(v && v[2]) };
+  } catch {
+    return { 1: [], 2: [] };
+  }
+}
+
+const rankLines = (a) =>
+  a.slice(0, 5).map((r, i) => i + 1 + '. ' + r.n.padEnd(3) + '  ' + String(r.s).padStart(6) + '  ' + r.d + 'd').join('\n') || 'Sin puntajes todavía';
+const qualifies = (np, sc) => sc > 0 && RANK && (RANK[np].length < RMAX || sc > RANK[np][RMAX - 1].s);
 
 // ---------- generación del edificio ----------
 
@@ -615,7 +657,7 @@ function startLog(s) {
   s.UL.add([st.logC, st.statC, st.card]);
 
   const n = alive(st).length;
-  log(st, n ? 'Se cierra la escotilla. Son ' + n + ' en el bunker.' : 'Nadie llegó al bunker.', '#ffd23b');
+  log(st, !n ? 'Nadie llegó al bunker.' : n == 1 ? 'Se cierra la escotilla. Estás solo en el bunker.' : 'Se cierra la escotilla. Son ' + n + ' en el bunker.', '#ffd23b');
   log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', '#ffd23b');
   st.lt = DAY_MS;
   if (!n) gameOver(s, 'El apocalipsis empezó sin ti.');
@@ -768,7 +810,14 @@ function stepLog(s, dt) {
   const st = s.st, ev = st.ev, any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
   const ok = () => any('1') || pressed(s, 'START1') || pressed(s, 'START2');
   if (st.over) {
-    if (pressed(s, 'START1') || pressed(s, 'START2')) s.scene.restart();
+    const nm = st.nm;
+    if (nm) {
+      const h = any('R') - any('L'), v = any('U') - any('D');
+      nm.i = Math.max(0, Math.min(2, nm.i + h));
+      nm.l[nm.i] = (nm.l[nm.i] + v + 26) % 26;
+      if (ok()) nm.i < 2 ? nm.i++ : saveScore(s);
+      if (st.nm) drawName(st);
+    } else if (pressed(s, 'START1') || pressed(s, 'START2')) s.scene.restart();
     return;
   }
   if (ev) {
@@ -818,6 +867,25 @@ function gameOver(s, why) {
   st.hint.setText('START para volver').setColor('#999');
   st.bar.width = 0;
   layoutLog(st);
+  if (qualifies(st.P.length, st.score)) {
+    st.nm = { l: [0, 0, 0], i: 0 };
+    drawName(st);
+  }
+}
+
+const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+function drawName(st) {
+  const { l, i } = st.nm;
+  st.hint.setText('INICIALES  ' + l.map((c, j) => (j == i ? '[' + ABC[c] + ']' : ' ' + ABC[c] + ' ')).join('') + '   ↑↓ letra  ←→ mover  B1 ok').setColor('#ffd23b').setFontSize(18);
+}
+
+function saveScore(s) {
+  const st = s.st, np = st.P.length, row = { n: st.nm.l.map((c) => ABC[c]).join(''), s: st.score, d: st.day };
+  st.nm = null;
+  RANK[np] = clean([...RANK[np], row]);
+  store().set(RK, RANK).catch(() => {}); // sin storage, el ranking vive hasta recargar
+  st.hint.setText('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P   ·   START para volver').setColor('#2ec4a0');
+  [523, 659, 784, 1047].forEach((f, i) => tone(s, f, 0.15, 'triangle', 0.15, i * 0.1));
 }
 
 function update(t, dt) {

@@ -99,6 +99,6 @@ Abuelita · Gamer · Conserje · Estudiante · Doctora · Tío del asado · Airb
 | **E1 Saqueo** | Layouts generados, movimiento top-down con colisiones, escaleras, HUD lateral, objetos placeholder, mochila, bunker, timer, 1P/2P con pantalla dividida, pantalla de resultado | Hecho |
 | **E2 Alerta y cinemática** | Alerta del teléfono, notificaciones push, temblores de aviso, cinemática Richter → ??? → Tierra partida | Hecho |
 | **E3 Logbook** | Raciones, estados, días, eventos, endings, resumen "te habría salvado" | Hecho |
-| **E4 Arcade** | Título, puntaje, iniciales, ranking 1P/2P | |
+| **E4 Arcade** | Título, puntaje, iniciales, ranking 1P/2P | Hecho |
 | **E5 Arte y audio** | Muebles, personajes, iconos, sonido procedural | |
 | **E6 Pulido** | Balance, cover, metadata, peso | |

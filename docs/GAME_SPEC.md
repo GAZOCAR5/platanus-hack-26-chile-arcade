@@ -38,7 +38,12 @@ Tierra caricaturesca partida en dos. "COMIENZA EL APOCALIPSIS". En 2P la pantall
   Raciones: bidón 12, botella 3, bebida 6 · lata 4, porotos 4 (con abrelatas o cortaplumas), tallarines 5 (con gas),
   marraqueta 3, charqui 6, manjar 4, sopaipillas 2, completo 2.
 - Simulación (400 runs, opciones al azar): loot pobre ≈ 5 días, típico ≈ 11 (2 % rescate), greedy ≈ 16 (19 % rescate).
-- Cada persona: sana / herida / enferma / muerta. 3 días sin agua o 6 sin comida → muere.
+- Cada persona: sana / herida / enferma / muerta, con su propia sed y hambre. 3 días sin agua o 6 sin comida → muere.
+- **Raciones**: tarjeta RACIONES el día 1, cada 4 días y cuando mañana no alcanza para todos. Por persona: agua y comida,
+  solo agua, solo comida o nada (←→ cambia, B1 listo).
+- **Historias encadenadas**: un evento deja una marca (`#saq`, `#carta`, `#amigo`, `#venganza`, `#radio`) y su continuación
+  pesa ×30. Eventos que dependen de alguien (abuela, quiltro, gato, vecina) solo salen si está vivo.
+- **Sesgo al loot**: cada opción usable con tu loot triplica la chance del evento. Ningún evento ni frase se repite en una run.
 - Días normales: texto automático (~1,5 s por día).
 - Cada 2–4 días al azar: evento con hasta 3 opciones (joystick + Botón 1). Las opciones dependen del loot.
   Probabilidades ocultas; el objeto que ayuda aparece como opción ("Salir con la linterna").

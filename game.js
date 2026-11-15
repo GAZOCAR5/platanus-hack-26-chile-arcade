@@ -417,7 +417,7 @@ function cine(s, dt) {
     st.cine.add(st.apo);
     s.tweens.add({ targets: st.apo, alpha: 1, duration: 800 });
   }
-  if (ct > 11500 || (ct > 1500 && (pressed(s, 'START1') || pressed(s, 'START2')))) showResult(s);
+  if (ct > 11500 || (ct > 1500 && (pressed(s, 'START1') || pressed(s, 'START2')))) startLog(s);
 }
 
 // Tierra caricaturesca partida en dos por una grieta en zigzag
@@ -441,19 +441,299 @@ function earth(s) {
   half(1, [[50, -45, 26], [62, 38, 22], [30, 8, 12]]);
 }
 
-function showResult(s) {
+// ---------- E3: bitácora de días ----------
+
+const WATER = { bidon: 12, botella: 3, bebida: 6 }; // raciones (1 persona, 1 día)
+const FOOD = { lata: 4, porotos: 4, tallarines: 5, marraqueta: 3, charqui: 6, manjar: 4, sopaipillas: 2, completo: 2 };
+const FLAVOR = [
+  'Afuera llueve ceniza.', 'La radio del vecino solo da estática.', 'Se escuchan perros a lo lejos.',
+  'Huele a humedad.', 'Día tranquilo. Demasiado tranquilo.', 'Contaron los tarros tres veces.',
+  'Alguien cuenta lo del terremoto del 60. Otra vez.', 'Sueñas con una sopaipilla pasada.',
+  'Alguien juega carioca solo.', 'El techo cruje, pero aguanta.',
+];
+// Evento: [tipo r=réplica s=saqueo m=varios, texto, efecto previo, opciones]
+// Opción: [texto, requiere (ids con +), prob. de éxito, efecto éxito, texto éxito, efecto fracaso, texto fracaso]
+// Efectos: a±n agua, c±n comida, h herido, s enfermo, x sana a alguien, k muere alguien,
+//          +id gana, -id pierde, d un día de raciones extra, e acerca el rescate, r rescate
+const EVENTS = [
+  ['r', 'Réplica fuerte. El techo cruje y cae polvo.', '', [
+    ['Afirmar con cinta americana', 'cinta', 0.9, '', 'La cinta aguanta todo.', 'h', 'Se cae una viga encima de alguien.'],
+    ['Agacharse y cubrirse', '', 0.6, '', 'Pasó el susto.', 'h', 'Alguien se golpea la cabeza.'],
+    ['Rezarle a San Expedito', '', 0.4, '', 'Funcionó, parece.', 'h', 'No funcionó.']]],
+  ['r', 'Réplica. Se rompe una cañería y entra agua turbia.', '', [
+    ['Hervirla con el encendedor', 'encendedor', 0.9, 'a+3', 'Agua hervida, sabor a cañería.', 's', 'Igual cayó mal.'],
+    ['Tomarla así no más', '', 0.4, 'a+3', 'Estómago de acero.', 'a+3 s', 'Alguien se enferma.'],
+    ['Taparla con la frazada', 'frazada', 1, '', 'Bunker seco.', '', '']]],
+  ['r', 'Réplica pequeña. Se cae el estante de los tarros.', '', [
+    ['Atrapar los tarros', '', 0.5, '', '¡Atajada de arquero!', 'c-2', 'Se reventaron dos tarros.'],
+    ['Cubrirse', '', 1, 'c-1', 'Se perdió un tarro.', '', '']]],
+  ['s', 'Saqueadores golpean la escotilla.', '', [
+    ['Salir con el uslero', 'uslero', 0.8, '', 'Huyeron del uslero de la abuela.', 'h', 'Eran más.'],
+    ['Que ladre el quiltro', 'perro', 0.85, '', 'El quiltro los espantó.', 'c-3', 'Se llevaron comida.'],
+    ['Pasarles comida', '', 1, 'c-3', 'Se fueron con tres raciones.', '', '']]],
+  ['s', 'Saqueadores ofrecen un trato: comida por algo brillante.', '', [
+    ['Darles la Gaviota del Festival', 'gaviota', 1, 'c+5 -gaviota', 'La gaviota vale más que el oro.', '', ''],
+    ['Ofrecer 20 lucas', 'lucas', 0.1, 'c+3 -lucas', 'Increíble, aceptaron.', '-lucas', 'Se rieron y se llevaron el billete.'],
+    ['Rechazar', '', 1, '', 'Se van refunfuñando.', '', '']]],
+  ['s', 'Un grupo pide refugio en el bunker.', '', [
+    ['Hacerte pasar por Leo Rey', 'peluca', 1, 'c+4 a+2', 'Te piden una foto y te regalan comida.', '', ''],
+    ['Dejarlos entrar', '', 0.5, 'c+3 a+2', 'Traían provisiones.', 'c-3 a-3', 'Se comieron todo y se fueron.'],
+    ['Negarse', '', 1, '', 'Cierras la escotilla con culpa.', '', '']]],
+  ['s', 'De noche, alguien intenta forzar la escotilla.', '', [
+    ['Asomar el Moai', 'moai', 0.9, '', 'El Moai impone respeto.', '', ''],
+    ['Hacerse el muerto', '', 0.6, '', 'Se aburrieron.', 'c-3 a-2', 'Entraron y robaron.'],
+    ['Pelear', '', 0.5, '', 'Los echaste a escobazos.', 'h', 'Alguien sale herido.']]],
+  ['m', 'Un perro callejero rasguña la puerta.', '', [
+    ['Darle de comer', '', 0.6, 'c-1 +radio', 'Vuelve al rato con una radio en el hocico.', 'c-1 h', 'Te muerde el tobillo.'],
+    ['Adoptarlo', '', 0.7, '+perro c-1', 'Nuevo integrante del bunker.', 'h', 'No quería ser adoptado.'],
+    ['Ignorarlo', '', 1, '', 'Se va llorando. Tú también.', '', '']]],
+  ['m', 'Alguien amanece con fiebre.', 's', [
+    ['Usar el botiquín', 'botiquin', 1, 'x', 'Paracetamol y a dormir.', '', ''],
+    ['Darle pisco "medicinal"', 'pisco', 0.5, 'x -pisco', 'Santo remedio.', '-pisco', 'Ahora tiene fiebre y caña.'],
+    ['Esperar que se le pase', '', 0.3, 'x', 'Se le pasó.', '', 'Sigue mal.']]],
+  ['m', 'Alguien se tuerce el tobillo en los escombros.', 'h', [
+    ['Vendar con cinta', 'cinta', 0.9, 'x', 'Quedó como nuevo.', '', 'Quedó peor.'],
+    ['Usar el botiquín', 'botiquin', 1, 'x', 'Vendaje profesional.', '', ''],
+    ['Aguantarse', '', 0.4, 'x', 'Era una torcedura leve.', '', 'Va a cojear un rato.']]],
+  ['m', 'Moho en las paredes. Todos tosen.', '', [
+    ['Ponerse la mascarilla', 'mascarilla', 0.9, '', 'Respiras tranquilo.', 's', 'Igual alguien se enferma.'],
+    ['Ventilar', '', 0.5, '', 'Entra aire (y ceniza).', 's', 'Alguien se enferma.']]],
+  ['m', 'Oscuridad total. No se ve nada.', '', [
+    ['Prender la linterna', 'linterna+pilas', 1, '', 'Luz. Bendita luz.', '', ''],
+    ['Cantar con la guitarra', 'guitarra', 1, 'x', 'Suena "Gracias a la vida". Se emocionan.', '', ''],
+    ['Aguantar a ciegas', '', 0.5, '', 'Nadie se tropezó.', 'h', 'Alguien se tropieza.']]],
+  ['m', 'Hay que salir a buscar provisiones.', '', [
+    ['Ir con linterna', 'linterna+pilas', 0.8, 'c+3 a+2', 'Encuentras un almacén intacto.', 'h', 'Te cae un ladrillo.'],
+    ['Ir con el mapa', 'mapa', 0.7, 'c+2 a+3', 'Llegas a un supermercado saqueado a medias.', 'h', 'Te pierdes y vuelves herido.'],
+    ['Ir a ciegas', '', 0.4, 'c+2', 'Algo es algo.', 'h', 'Vuelves cojeando y sin nada.']]],
+  ['m', 'Una lata y ningún abrelatas a mano.', '', [
+    ['Abrirla con el cortaplumas', 'cortaplumas', 1, 'c+2', 'Click. Porotos.', '', ''],
+    ['Usar el abrelatas', 'abrelatas', 1, 'c+2', 'Como la gente.', '', ''],
+    ['A combos', '', 0.4, 'c+2', 'Se abrió.', 'h', 'Te cortas la mano.']]],
+  ['m', 'Llueve. Una lluvia gris y espesa.', '', [
+    ['Juntar agua', '', 0.7, 'a+4', 'Agua gris, pero agua.', 'a+2 s', 'Alguien se enferma.'],
+    ['Quedarse adentro', '', 1, '', 'Escuchas la lluvia.', '', '']]],
+  ['m', 'Un caballo asustado pasa por la calle.', '', [
+    ['Montarlo con el sombrero de huaso', 'huaso', 0.8, 'c+4 a+2', 'Galopas hasta un fundo con provisiones.', 'h', 'El caballo no era de rodeo.'],
+    ['Dejarlo ir', '', 1, '', 'Libre como el viento.', '', '']]],
+  ['m', 'Un gato se cuela por una grieta.', '', [
+    ['Adoptarlo', '', 0.8, '+gato', 'Ronronea. Sube el ánimo.', 'h', 'Te araña la cara.'],
+    ['Echarlo', '', 1, '', 'El gato te mira con desprecio.', '', '']]],
+  ['m', 'Es 18 de septiembre en el bunker.', '', [
+    ['Bailar cueca con el pañuelo', 'cueca', 1, 'x', '¡Viva Chile! Hasta el enfermo se para.', '', ''],
+    ['Tomarse el terremoto', 'terremoto', 1, 'x d -terremoto', 'Lloran de risa. Al otro día, caña brutal.', '', ''],
+    ['Asado imaginario', '', 1, '', 'Huele a nada, pero se agradece.', '', '']]],
+  ['m', 'La radio podría tener señal.', '', [
+    ['Prender la radio', 'radio+pilas', 0.8, 'e', 'Noticias: los rescates avanzan por la ciudad.', '', 'Solo estática.'],
+    ['Antena con cinta y frazada', 'cinta+frazada', 0.4, 'e', 'Se escucha algo. ¡Hay rescates!', '', 'No funcionó.'],
+    ['Dejarla', '', 1, '', 'Silencio.', '', '']]],
+  ['m', 'Alguien ronca demasiado fuerte.', '', [
+    ['Tirarle la tarjeta Bip', 'bip', 1, '', 'La Bip por fin sirvió para algo.', '', ''],
+    ['Aguantar', '', 1, '', 'Nadie duerme.', '', '']]],
+  ['m', 'Entre los escombros: ¡un cartón de lotería premiado!', '', [
+    ['Celebrar', '', 1, '', 'Ganaste 500 millones. No hay dónde cobrarlos.', '', '']]],
+];
+const ENDINGS = [
+  ['Se escucha un helicóptero sobrevolando.', [
+    ['Encumbrar el volantín', 'volantin', 0.85, 'r', 'El piloto ve el volantín. ¡Los rescatan!', '', 'El hilo se cortó.'],
+    ['Gritar y hacer señas', '', 0.35, 'r', '¡Los vieron! Bajan una escalera.', 'h', 'No los vieron. Alguien se cae.'],
+    ['Esconderse', '', 1, '', 'El helicóptero se aleja.', '', '']]],
+  ['Pasa una caravana de sobrevivientes rumbo al sur.', [
+    ['Unirse con el mapa', 'mapa', 0.8, 'r', 'Llegan a un pueblo a salvo.', 'h', 'Se perdieron y volvieron.'],
+    ['Unirse a ciegas', '', 0.4, 'r', 'Contra todo pronóstico, llegan.', 'k', 'El viaje cobra una vida.'],
+    ['Quedarse', '', 1, '', 'La caravana se pierde en el polvo.', '', '']]],
+  ['La radio capta: refugio militar en el cerro San Cristóbal.', [
+    ['Seguir la señal', 'radio+pilas', 0.8, 'r', 'La Virgen del cerro los recibe. ¡A salvo!', 'h', 'La señal se cortó a medio camino.'],
+    ['Caminar a ciegas', '', 0.3, 'r', 'Llegaron de milagro.', 'h', 'Vuelven heridos.'],
+    ['Ignorar', '', 1, '', 'Mejor malo conocido.', '', '']]],
+  ['Golpean la escotilla: ¿rescate o saqueadores?', [
+    ['Abrir con la peluca de Leo Rey', 'peluca', 0.9, 'r', 'Era un convoy. Te suben a la primera camioneta.', '', 'Eran saqueadores fans.'],
+    ['Abrir', '', 0.5, 'r', '¡Rescate! Sales a la luz.', 'c-5 a-5', 'Saqueadores. Se llevan casi todo.'],
+    ['No abrir', '', 1, '', 'Los golpes se detienen.', '', '']]],
+];
+
+const alive = (st) => st.ppl.filter((p) => p.st < 3);
+const has = (st, req) => !req || req.split('+').every((k) => st.inv[k] > 0 || st.ppl.some((p) => p.k == k && p.st < 3));
+const STATE = ['sano', 'herido', 'enfermo', 'muerto'];
+const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bonus de radio)
+
+function startLog(s) {
   const st = s.st;
-  st.ph = 'res';
-  const count = {};
-  for (const it of st.bunker) count[it.k] = (count[it.k] || 0) + 1;
-  const list = Object.keys(count).map((k) => ITEMS[k][0] + (count[k] > 1 ? ' x' + count[k] : '')).join(' · ') || 'nada';
-  const eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
   st.cine.destroy();
-  s.UL.add(s.add.rectangle(0, 0, W, H, 0x000000, 0.92).setOrigin(0));
-  s.UL.add(txt(s, W / 2, 90, 'RESUMEN DEL SAQUEO', 34, '#ff6b4a').setOrigin(0.5));
-  s.UL.add(txt(s, W / 2, 150, st.P.map((p, i) => 'P' + (i + 1) + (p.alive ? ' llegó al bunker' : ' quedó afuera')).join('   ·   '), 18).setOrigin(0.5));
-  s.UL.add(txt(s, 60, 200, 'En el bunker: ' + list, 15).setWordWrapWidth(680));
-  s.UL.add(txt(s, W / 2, 500, 'Easter eggs: ' + eggs + '   ·   START para volver', 18, '#ffd23b').setOrigin(0.5));
+  st.ph = 'log';
+  st.inv = {};
+  st.a = st.c = st.day = st.thirst = st.hunger = st.eb = 0;
+  st.next = 2;
+  st.lines = [];
+  st.miss = {};
+  st.ppl = st.P.filter((p) => p.alive).map((p) => ({ n: st.P.length == 1 ? 'Tú' : p.k.slice(0, 2), st: 0 }));
+  for (const it of st.bunker) {
+    if (ITEMS[it.k][2] == 'p') st.ppl.push({ n: ITEMS[it.k][0], k: it.k, st: 0 });
+    else st.inv[it.k] = (st.inv[it.k] || 0) + 1;
+  }
+  const inv = st.inv, cook = { porotos: inv.abrelatas || inv.cortaplumas, tallarines: inv.gas };
+  for (const k in inv) {
+    st.a += (WATER[k] || 0) * inv[k];
+    if (FOOD[k] && (k in cook ? cook[k] : 1)) st.c += FOOD[k] * inv[k];
+  }
+  if (inv.porotos && !cook.porotos) st.miss.Abrelatas = 1;
+  if (inv.tallarines && !cook.tallarines) st.miss['Balón de gas'] = 1;
+  st.eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
+  s.UL.add(s.add.rectangle(0, 0, W, H, 0x0b0b0e).setOrigin(0));
+  s.UL.add(txt(s, 24, 18, 'BITÁCORA DEL BUNKER', 24, '#ffd23b'));
+  st.logT = txt(s, 24, 64, '', 14, '#ddd').setWordWrapWidth(470).setLineSpacing(4);
+  st.statT = txt(s, 520, 64, '', 14).setLineSpacing(4).setWordWrapWidth(260);
+  st.card = s.add.container(W / 2, 452).setVisible(false);
+  st.cardBg = s.add.rectangle(0, 0, 640, 280, 0x1b1b22).setStrokeStyle(3, 0xffd23b);
+  st.cardT = txt(s, -300, -122, '', 18).setWordWrapWidth(600);
+  st.optT = [0, 1, 2].map((i) => txt(s, -280, -50 + i * 38, '', 16).setWordWrapWidth(560));
+  st.bar = s.add.rectangle(-300, 122, 600, 6, 0xffd23b).setOrigin(0, 0.5);
+  st.card.add([st.cardBg, st.cardT, ...st.optT, st.bar]);
+  s.UL.add([st.logT, st.statT, st.card]);
+  const n = alive(st).length;
+  log(st, n ? 'Se cierra la escotilla. Son ' + n + ' en el bunker.' : 'Nadie llegó al bunker.');
+  log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.');
+  st.lt = 1800;
+  if (!n) gameOver(s, 'El apocalipsis empezó sin ti.');
+}
+
+function log(st, m) {
+  st.lines.push(m);
+  st.logT.setText(st.lines.slice(-11).join('\n'));
+  const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
+  st.statT.setText(
+    'Día ' + st.day + '\nAgua: ' + st.a + '   Comida: ' + st.c + '\n\n' +
+    st.ppl.map((p) => p.n + ': ' + STATE[p.st]).join('\n') + '\n\n' + (tools.join(', ') || 'Sin herramientas'));
+}
+
+function hit(st, from, to) {
+  const c = st.ppl.filter((p) => p.st < 3 && (from < 0 ? true : p.st == from));
+  if (!c.length) return;
+  const p = pick(c);
+  p.st = to;
+  if (to == 3) log(st, p.n == 'Tú' ? 'Moriste.' : p.n + ' murió.');
+}
+
+function apply(st, eff) {
+  for (const e of eff.split(' ').filter(Boolean)) {
+    const n = +e.slice(1), k = e.slice(1);
+    if (e[0] == 'a') st.a = Math.max(0, st.a + n);
+    else if (e[0] == 'c') st.c = Math.max(0, st.c + n);
+    else if (e == 'h') hit(st, 0, 1);
+    else if (e == 's') hit(st, 0, 2);
+    else if (e == 'x') { hit(st, 1, 0); hit(st, 2, 0); }
+    else if (e == 'k') hit(st, -1, 3);
+    else if (e == 'd') { st.a = Math.max(0, st.a - alive(st).length); st.c = Math.max(0, st.c - alive(st).length); }
+    else if (e == 'e') st.eb += 0.05;
+    else if (e == 'r') st.won = 1;
+    else if (e[0] == '+') ITEMS[k][2] == 'p' ? st.ppl.push({ n: ITEMS[k][0], k, st: 0 }) : (st.inv[k] = (st.inv[k] || 0) + 1);
+    else if (e[0] == '-') st.inv[k] = Math.max(0, (st.inv[k] || 0) - 1);
+  }
+}
+
+// Peso de cada tipo según el día: réplicas decaen (Omori ~1/t), saqueos pico en días 2-5.
+const weight = (tp, d) => (tp == 'r' ? 6 / (d + 1) : tp == 's' ? (d >= 2 && d <= 5 ? 3 : 0.8) : 1);
+
+function nextDay(s) {
+  const st = s.st, ppl = alive(st), n = ppl.length;
+  st.day++;
+  let m = '';
+  if (st.a >= n) { st.a -= n; st.thirst = 0; } else { st.a = 0; st.thirst++; m += 'No queda agua. '; }
+  if (st.c >= n) { st.c -= n; st.hunger = 0; } else { st.c = 0; st.hunger++; m += 'No queda comida. '; }
+  log(st, 'Día ' + st.day + ': ' + (m || pick(FLAVOR)));
+  if (st.thirst >= 3 || st.hunger >= 6) { st.miss[st.thirst >= 3 ? 'Más agua' : 'Más comida'] = 1; hit(st, -1, 3); }
+  for (const p of alive(st)) {
+    if (p.st == 0 || Math.random() > (p.st == 2 ? 0.12 : 0.06)) continue;
+    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.'); if (Math.random() < 0.3) st.inv.botiquin--; }
+    else hit(st, p.st, 3);
+  }
+  if (!alive(st).length) return gameOver(s, 'No sobrevivió nadie.');
+  if (st.day >= ENDING_DAY && Math.random() < 0.1 + st.eb) { const e = pick(ENDINGS); return openCard(s, e[0], e[1]); }
+  if (st.day >= st.next) {
+    st.next = st.day + 2 + rnd(3);
+    const tot = EVENTS.reduce((a, e) => a + weight(e[0], st.day), 0);
+    let r = Math.random() * tot;
+    const ev = EVENTS.find((e) => (r -= weight(e[0], st.day)) <= 0) || EVENTS[0];
+    apply(st, ev[2]);
+    openCard(s, ev[1], ev[3]);
+  }
+}
+
+function openCard(s, text, opts) {
+  const st = s.st;
+  st.ev = { opts, cur: 0, t: 10000, out: 0 };
+  st.cardT.setText(text);
+  st.ev.cur = opts.findIndex((o) => has(st, o[1]));
+  st.card.setVisible(true);
+  drawCard(st);
+}
+
+function drawCard(st) {
+  st.optT.forEach((t, i) => {
+    const o = st.ev.opts[i];
+    if (!o) return t.setText('');
+    const ok = has(st, o[1]);
+    t.setText((i == st.ev.cur ? '> ' : '  ') + o[0] + (ok ? '' : '  (no tienes)')).setColor(!ok ? '#555' : i == st.ev.cur ? '#ffd23b' : '#fff');
+  });
+}
+
+function choose(s) {
+  const st = s.st, o = st.ev.opts[st.ev.cur], win = Math.random() < o[2];
+  apply(st, win ? o[3] : o[5]);
+  if (!win || /[hsk]|-[ac]/.test(o[3])) for (const x of st.ev.opts) if (x[1] && !has(st, x[1])) st.miss[x[1].split('+').map((k) => ITEMS[k][0]).join(' + ')] = 1;
+  const m = win ? o[4] : o[6] || o[4];
+  st.optT.forEach((t) => t.setText(''));
+  st.optT[0].setText(m).setColor(win ? '#2ec4a0' : '#ff6b4a');
+  log(st, '> ' + o[0] + ': ' + m);
+  st.ev.out = 2200;
+}
+
+function stepLog(s, dt) {
+  const st = s.st, ev = st.ev, any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
+  if (st.over) {
+    if (pressed(s, 'START1') || pressed(s, 'START2')) s.scene.restart();
+    return;
+  }
+  if (ev) {
+    if (ev.out) {
+      if ((ev.out -= dt) <= 0) {
+        st.ev = null;
+        st.card.setVisible(false);
+        if (st.won) gameOver(s, '¡Sobrevivieron al apocalipsis!');
+        else if (!alive(st).length) gameOver(s, 'No sobrevivió nadie.');
+      }
+      return;
+    }
+    const step = any('D') ? 1 : any('U') ? -1 : 0;
+    if (step) {
+      let c = ev.cur;
+      do c = (c + step + ev.opts.length) % ev.opts.length; while (!has(st, ev.opts[c][1]));
+      ev.cur = c;
+      drawCard(st);
+    }
+    ev.t -= dt;
+    st.bar.width = 600 * Math.max(0, ev.t / 10000);
+    if (ev.t <= 0) ev.cur = pick(ev.opts.map((o, i) => (has(st, o[1]) ? i : -1)).filter((i) => i >= 0));
+    if (ev.t <= 0 || any('1') || pressed(s, 'START1') || pressed(s, 'START2')) choose(s);
+    return;
+  }
+  if ((st.lt -= dt) <= 0 || any('1')) {
+    st.lt = 1400;
+    nextDay(s);
+  }
+}
+
+function gameOver(s, why) {
+  const st = s.st, n = alive(st).length;
+  st.over = 1;
+  st.score = st.day * 100 + st.eggs * 300 + n * 200 + (st.won ? 2000 : 0);
+  const miss = Object.keys(st.miss).slice(0, 4).join(', ');
+  st.card.setVisible(true);
+  st.cardT.setText(why + '\n\nDías: ' + st.day + '   Vivos: ' + n + '   Easter eggs: ' + st.eggs + '\nPUNTAJE: ' + st.score);
+  st.optT.forEach((t) => t.setText(''));
+  st.optT[1].setText(miss ? 'Te habría salvado: ' + miss : '').setColor('#ff9a3b').setY(30);
+  st.optT[2].setText('START para volver').setColor('#aaa').setY(90);
+  st.bar.width = 0;
 }
 
 function update(t, dt) {
@@ -486,8 +766,8 @@ function update(t, dt) {
     const inBunker = st.P.every((p) => p.f == 0);
     if (inBunker && st.P.length && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
     if (st.left <= 0) endLoot(s);
-  } else if (st.ph == 'res' && (pressed(s, 'START1') || pressed(s, 'START2'))) {
-    s.scene.restart();
+  } else if (st.ph == 'log') {
+    stepLog(s, dt);
   }
   s.ctl.pressed = Object.create(null);
 }

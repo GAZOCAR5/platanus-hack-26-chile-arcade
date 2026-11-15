@@ -35,12 +35,15 @@ Tierra caricaturesca partida en dos. "COMIENZA EL APOCALIPSIS". En 2P la pantall
 
 ## Fase 3: Logbook
 - Recursos contables: **agua** y **comida** en raciones. Cada persona consume 1 de cada una por día.
+  Raciones: bidón 12, botella 3, bebida 6 · lata 4, porotos 4 (con abrelatas o cortaplumas), tallarines 5 (con gas),
+  marraqueta 3, charqui 6, manjar 4, sopaipillas 2, completo 2.
+- Simulación (400 runs, opciones al azar): loot pobre ≈ 5 días, típico ≈ 11 (2 % rescate), greedy ≈ 16 (19 % rescate).
 - Cada persona: sana / herida / enferma / muerta. 3 días sin agua o 6 sin comida → muere.
 - Días normales: texto automático (~1,5 s por día).
 - Cada 2–4 días al azar: evento con hasta 3 opciones (joystick + Botón 1). Las opciones dependen del loot.
   Probabilidades ocultas; el objeto que ayuda aparece como opción ("Salir con la linterna").
 - Probabilidades cambian con el tiempo: réplicas decaen (Omori), saqueos suben días 2–5, enfermedad sube sin botiquín.
-- Desde el día 20: 10 % diario de **evento final** (decisión). Éxito = ending con bonus. Fracaso = mueres o sigues sin bonus.
+- Desde el día 10 (`ENDING_DAY`): 10 % diario de **evento final** (decisión), más 5 % por cada vez que la radio da noticias. Éxito = ending con bonus. Fracaso = mueres o sigues sin bonus.
 - Puntaje: días × 100 + easter eggs + vivos + bonus de ending.
 - Resumen final: "te habría salvado: …".
 - Presupuesto de texto: ~30 eventos + 4 endings (~12 KB).
@@ -95,7 +98,7 @@ Abuelita · Gamer · Conserje · Estudiante · Doctora · Tío del asado · Airb
 |---|---|---|
 | **E1 Saqueo** | Layouts generados, movimiento top-down con colisiones, escaleras, HUD lateral, objetos placeholder, mochila, bunker, timer, 1P/2P con pantalla dividida, pantalla de resultado | Hecho |
 | **E2 Alerta y cinemática** | Alerta del teléfono, notificaciones push, temblores de aviso, cinemática Richter → ??? → Tierra partida | Hecho |
-| **E3 Logbook** | Raciones, estados, días, eventos, endings, resumen "te habría salvado" | |
+| **E3 Logbook** | Raciones, estados, días, eventos, endings, resumen "te habría salvado" | Hecho |
 | **E4 Arcade** | Título, puntaje, iniciales, ranking 1P/2P | |
 | **E5 Arte y audio** | Muebles, personajes, iconos, sonido procedural | |
 | **E6 Pulido** | Balance, cover, metadata, peso | |

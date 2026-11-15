@@ -142,7 +142,7 @@ function genFloor(f, extra) {
 
   if (f == NF - 1) {
     open(4, 1, 48, 13, 12);
-    open(1, 6, 4, 8, 12);
+    open(2, 6, 4, 8, 12); // desde x=2: la columna 1 es la de las escaleras
     for (let y = 4; y <= 10; y++) for (let x = 22; x <= 32; x++) set(x, y, 5);
     furnish(5, 1, 47, 13, 14, []);
     for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
@@ -177,8 +177,9 @@ function genFloor(f, extra) {
   return { g, d, items, labels };
 }
 
-// Autocheck: cada objeto y cada escalera se alcanza desde la escalera de llegada.
-function reachableAll(F) {
+// Autocheck: las escaleras que corresponden existen, y cada objeto y escalera se alcanza.
+function reachableAll(F, f) {
+  if ((f < NF - 1 && F.g[6 * GW + 1] != 2) || (f > 0 && F.g[8 * GW + 1] != 3)) return false;
   const start = F.g[8 * GW + 1] == 3 ? 8 * GW + 1 : 6 * GW + 1, seen = new Uint8Array(GW * GH), q = [start];
   seen[start] = 1;
   while (q.length) {
@@ -218,7 +219,7 @@ function start(s, np) {
   st.floors = [];
   for (let f = 0; f < NF; f++) {
     let F;
-    do F = genFloor(f, extra); while (!reachableAll(F));
+    do F = genFloor(f, extra); while (!reachableAll(F, f));
     st.floors.push(F);
     drawFloor(s, f, F);
   }
@@ -352,7 +353,7 @@ function stepPlayer(s, p, t, dt) {
   if ((c == 2 || c == 3) && t >= p.lock) {
     p.f += c == 2 ? 1 : -1;
     p.x = 2 * T + T / 2;
-    p.y = (c == 2 ? 8 : 6) * T + T / 2;
+    p.y = (c == 2 ? 6 : 8) * T + T / 2; // llegas junto a la misma escalera: mantener ← sigue bajando/subiendo
     p.lock = t + (st.left < 20 ? 800 : 450); // con temblores, la escalera cuesta más
   }
   if (p.f == 0 && p.bag.length) {

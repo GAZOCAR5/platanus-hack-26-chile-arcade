@@ -239,7 +239,7 @@ function start(s, np) {
     s.UL.add(txt(s, 727, hy(f) + 2, fl(f), 10, '#ffffff88'));
   }
   st.bunker = [];
-  st.msg = txt(s, 360, 40, '', 16, '#ffd23b').setOrigin(0.5);
+  st.msg = txt(s, 360, 92, '', 16, '#ffd23b').setOrigin(0.5).setBackgroundColor('#000000aa');
   s.UL.add(st.msg);
 
   const F3 = st.floors[FAMILY_FLOOR];
@@ -266,9 +266,52 @@ function start(s, np) {
     st.P.push(p);
   }
   if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, 0xffffff).setOrigin(0));
-  s.cameras.add(0, 0, W, H).ignore(s.WL);
+  st.hud = s.cameras.add(0, 0, W, H).ignore(s.WL);
   st.left = LOOT_S;
-  st.ph = 'loot';
+  st.ni = st.sh = st.at = 0;
+  st.ph = 'alert';
+  // 03:34: la hora del 27F
+  const ph = s.add.graphics().fillStyle(0x000000, 0.85).fillRect(0, 0, W, H)
+    .fillStyle(0x1b1b22).fillRoundedRect(250, 60, 300, 480, 36)
+    .fillStyle(0x0a0a0f).fillRoundedRect(262, 72, 276, 456, 26)
+    .fillStyle(0xd62828).fillRoundedRect(276, 180, 248, 210, 14);
+  st.alert = s.add.container(0, 0, [
+    ph,
+    txt(s, 400, 120, '03:34', 44).setOrigin(0.5),
+    txt(s, 292, 194, '!! ALERTA DE EMERGENCIA', 15, '#ffd23b'),
+    txt(s, 292, 228, 'Megaterremoto inminente en Santiago. Baja al bunker -3 con todo lo que puedas.\n\nTienes 60 segundos.', 15)
+      .setWordWrapWidth(216),
+    txt(s, 400, 500, 'B1 o START para correr', 13, '#aaa').setOrigin(0.5),
+  ]);
+  s.UL.add(st.alert);
+  s.tweens.add({ targets: st.alert, x: { from: -4, to: 4 }, duration: 50, yoyo: true, repeat: 20 });
+  alarm(s);
+}
+
+// [segundos restantes, de, mensaje]
+const NOTIFS = [
+  [56, 'Mamá', '¿Dónde estái? Contesta'],
+  [50, 'Familia (47)', 'Tía Gloria: dicen que es peor que el del 60'],
+  [44, 'Conserje', 'NO usen el ascensor'],
+  [38, 'App de autos', 'Tu viaje fue cancelado'],
+  [32, 'Banco', 'Tu cuota vence mañana igual'],
+  [26, 'Vecino del 7B', '¿Alguien ha visto a mi gato?'],
+  [20, 'ALERTA', 'Ondas sísmicas detectadas: 20 segundos'],
+  [14, 'Ex', 'oye... ¿estái bien?'],
+  [9, 'Mamá', 'TE QUIERO. BAJA YA.'],
+  [4, 'ALERTA', 'Agáchate, cúbrete y afírmate'],
+];
+
+function notify(s, from, m) {
+  const red = from == 'ALERTA';
+  const c = s.add.container(360, -40, [
+    s.add.rectangle(0, 0, 440, 52, red ? 0xd62828 : 0xf2f2f7).setStrokeStyle(2, 0x000000),
+    txt(s, -208, -21, from, 13, red ? '#ffd23b' : '#d62828'),
+    txt(s, -208, -3, m, 15, red ? '#fff' : '#111'),
+  ]);
+  s.UL.add(c);
+  s.tweens.add({ targets: c, y: 34, duration: 250, hold: 2200, yoyo: true, onComplete: () => c.destroy() });
+  red ? alarm(s, 2) : tone(s, 1320, 0.15, 'sine', 0.15);
 }
 
 const used = (p) => p.bag.reduce((a, it) => a + ITEMS[it.k][1], 0);
@@ -310,7 +353,7 @@ function stepPlayer(s, p, t, dt) {
     p.f += c == 2 ? 1 : -1;
     p.x = 2 * T + T / 2;
     p.y = (c == 2 ? 8 : 6) * T + T / 2;
-    p.lock = t + 450;
+    p.lock = t + (st.left < 20 ? 800 : 450); // con temblores, la escalera cuesta más
   }
   if (p.f == 0 && p.bag.length) {
     say(st, 'Al bunker: ' + p.bag.map((it) => ITEMS[it.k][0]).join(', '));
@@ -339,14 +382,74 @@ function stepPlayer(s, p, t, dt) {
 
 function endLoot(s) {
   const st = s.st;
-  st.ph = 'res';
   for (const p of st.P) if (p.f != 0) p.alive = 0;
+  st.ph = 'cine';
+  st.ct = 0;
+  st.mag = txt(s, W / 2, H / 2, '6.0', 120).setOrigin(0.5);
+  // más grande que la pantalla: el shake no deja ver los bordes
+  st.cine = s.add.container(0, 0, [s.add.rectangle(-100, -100, W + 200, H + 200, 0x000000).setOrigin(0), st.mag]);
+  s.UL.add(st.cine);
+  rumble(s, 7, 0.7);
+}
+
+function cine(s, dt) {
+  const st = s.st, ct = (st.ct += dt);
+  if (ct < 4500) {
+    const v = 6 + 4 * (ct / 4500) ** 2;
+    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12);
+    st.hud.shake(100, 0.001 * (v - 5) ** 2);
+  } else if (ct < 6000) {
+    st.mag.setText(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').setColor('#ff4a4a');
+    st.hud.shake(100, 0.03);
+  } else if (ct < 7000) {
+    st.mag.setText('???');
+    st.hud.shake(100, 0.04);
+  } else if (!st.earth) {
+    st.mag.setVisible(false);
+    st.earth = 1;
+    earth(s);
+    rumble(s, 1, 1);
+    tone(s, 55, 1.2, 'sawtooth', 0.5);
+  }
+  if (ct > 8800 && !st.apo) {
+    st.apo = txt(s, W / 2, 520, 'COMIENZA EL APOCALIPSIS', 40, '#ff6b4a').setOrigin(0.5).setAlpha(0);
+    st.cine.add(st.apo);
+    s.tweens.add({ targets: st.apo, alpha: 1, duration: 800 });
+  }
+  if (ct > 11500 || (ct > 1500 && (pressed(s, 'START1') || pressed(s, 'START2')))) showResult(s);
+}
+
+// Tierra caricaturesca partida en dos por una grieta en zigzag
+function earth(s) {
+  const r = 110, zig = [];
+  for (let i = 0; i <= 8; i++) zig.push({ x: i % 8 ? (i % 2 ? 14 : -14) : 0, y: -r + (i * r) / 4 });
+  const half = (sd, lands) => {
+    const pts = zig.map((p) => ({ ...p }));
+    for (let i = 1; i < 24; i++) {
+      const a = Math.PI / 2 - (i * Math.PI) / 24;
+      pts.push({ x: sd * r * Math.cos(a), y: r * Math.sin(a) });
+    }
+    const g = s.add.graphics({ x: W / 2, y: 250 }).fillStyle(0x2a6fdb).fillPoints(pts, true).fillStyle(0x3bb36b);
+    for (const [x, y, rr] of lands) g.fillCircle(sd * x, y, rr);
+    g.lineStyle(4, 0x000000).strokePoints(pts, true);
+    s.st.cine.add(g);
+    s.tweens.add({ targets: g, x: W / 2 + sd * 140, angle: sd * 18, duration: 1400, ease: 'Cubic.easeOut' });
+  };
+  s.st.cine.add(s.add.circle(W / 2, 250, 70, 0xff6b1a));
+  half(-1, [[55, -30, 30], [40, 50, 18]]);
+  half(1, [[50, -45, 26], [62, 38, 22], [30, 8, 12]]);
+}
+
+function showResult(s) {
+  const st = s.st;
+  st.ph = 'res';
   const count = {};
   for (const it of st.bunker) count[it.k] = (count[it.k] || 0) + 1;
   const list = Object.keys(count).map((k) => ITEMS[k][0] + (count[k] > 1 ? ' x' + count[k] : '')).join(' · ') || 'nada';
   const eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
-  s.UL.add(s.add.rectangle(0, 0, W, H, 0x000000, 0.88).setOrigin(0));
-  s.UL.add(txt(s, W / 2, 90, 'COMIENZA EL APOCALIPSIS', 34, '#ff6b4a').setOrigin(0.5));
+  st.cine.destroy();
+  s.UL.add(s.add.rectangle(0, 0, W, H, 0x000000, 0.92).setOrigin(0));
+  s.UL.add(txt(s, W / 2, 90, 'RESUMEN DEL SAQUEO', 34, '#ff6b4a').setOrigin(0.5));
   s.UL.add(txt(s, W / 2, 150, st.P.map((p, i) => 'P' + (i + 1) + (p.alive ? ' llegó al bunker' : ' quedó afuera')).join('   ·   '), 18).setOrigin(0.5));
   s.UL.add(txt(s, 60, 200, 'En el bunker: ' + list, 15).setWordWrapWidth(680));
   s.UL.add(txt(s, W / 2, 500, 'Easter eggs: ' + eggs + '   ·   START para volver', 18, '#ffd23b').setOrigin(0.5));
@@ -358,10 +461,25 @@ function update(t, dt) {
   if (st.ph == 'title') {
     if (pressed(s, 'START1')) start(s, 1);
     else if (pressed(s, 'START2')) start(s, 2);
+  } else if (st.ph == 'alert') {
+    st.at += dt;
+    if (st.at > 5000 || (st.at > 500 && ['START1', 'START2', 'P1_1', 'P2_1'].some((c) => pressed(s, c)))) {
+      st.alert.destroy();
+      st.ph = 'loot';
+    }
+  } else if (st.ph == 'cine') {
+    cine(s, dt);
   } else if (st.ph == 'loot') {
     s_floors = st.floors;
     st.left -= dt / 1000;
     for (const p of st.P) stepPlayer(s, p, t, dt);
+    if (st.ni < NOTIFS.length && st.left <= NOTIFS[st.ni][0]) notify(s, ...NOTIFS[st.ni++].slice(1));
+    if (st.left < 20 && (st.sh -= dt) <= 0) { // temblores de aviso que crecen
+      const k = (20 - st.left) / 20;
+      st.sh = 1500 - 900 * k + rnd(600);
+      s.cameras.cameras.forEach((c) => c != st.hud && c.shake(400, 0.003 + 0.012 * k));
+      rumble(s, 0.6, 0.15 + 0.35 * k);
+    }
     st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : '#ffd23b');
     if ((st.msgT -= dt) <= 0) st.msg.setText('');
     const inBunker = st.P.every((p) => p.f == 0);
@@ -371,6 +489,45 @@ function update(t, dt) {
     s.scene.restart();
   }
   s.ctl.pressed = Object.create(null);
+}
+
+// ---------- audio procedural ----------
+
+function ac(s) {
+  const c = s.sound.context;
+  if (c && c.state == 'suspended') c.resume();
+  return c;
+}
+
+function tone(s, f, d, type, v, at = 0) {
+  const c = ac(s);
+  if (!c) return;
+  const o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime + at;
+  o.type = type;
+  o.frequency.value = f;
+  g.gain.setValueAtTime(v, t0);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+  o.connect(g).connect(c.destination);
+  o.start(t0);
+  o.stop(t0 + d);
+}
+
+const alarm = (s, n = 6) => { for (let i = 0; i < n; i++) tone(s, i % 2 ? 960 : 1280, 0.28, 'square', 0.1, i * 0.3); };
+
+function rumble(s, d, v) {
+  const c = ac(s);
+  if (!c) return;
+  const n = c.createBufferSource(), b = c.createBuffer(1, c.sampleRate * d, c.sampleRate);
+  const f = c.createBiquadFilter(), g = c.createGain(), t0 = c.currentTime, ch = b.getChannelData(0);
+  for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+  n.buffer = b;
+  f.type = 'lowpass';
+  f.frequency.value = 140;
+  g.gain.setValueAtTime(0.01, t0);
+  g.gain.linearRampToValueAtTime(v, t0 + d * 0.85);
+  g.gain.linearRampToValueAtTime(0, t0 + d);
+  n.connect(f).connect(g).connect(c.destination);
+  n.start();
 }
 
 // ---------- controles (del starter) ----------

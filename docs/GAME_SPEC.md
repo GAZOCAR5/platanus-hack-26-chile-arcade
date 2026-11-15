@@ -93,8 +93,8 @@ Abuelita · Gamer · Conserje · Estudiante · Doctora · Tío del asado · Airb
 ## Etapas
 | Etapa | Contenido | Estado |
 |---|---|---|
-| **E1 Saqueo** | Layouts generados, movimiento top-down con colisiones, escaleras, HUD lateral, objetos placeholder, mochila, bunker, timer, 1P/2P con pantalla dividida, pantalla de resultado | En curso |
-| **E2 Alerta y cinemática** | Alerta del teléfono, notificaciones push, temblores de aviso, cinemática Richter → ??? → Tierra partida | |
+| **E1 Saqueo** | Layouts generados, movimiento top-down con colisiones, escaleras, HUD lateral, objetos placeholder, mochila, bunker, timer, 1P/2P con pantalla dividida, pantalla de resultado | Hecho |
+| **E2 Alerta y cinemática** | Alerta del teléfono, notificaciones push, temblores de aviso, cinemática Richter → ??? → Tierra partida | Hecho |
 | **E3 Logbook** | Raciones, estados, días, eventos, endings, resumen "te habría salvado" | |
 | **E4 Arcade** | Título, puntaje, iniciales, ranking 1P/2P | |
 | **E5 Arte y audio** | Muebles, personajes, iconos, sonido procedural | |

@@ -57,44 +57,43 @@ function getStorage() {
 // '#' wall, ' ' void, '.' floor, 'x' solid prop, 'H' hiding spot, 'N' noise object,
 // 'T' task point, 'K' exit keypad, 'E' exit door, '1'/'2' player spawns, 'Z' Tulio spawn,
 // 'p' Policarpo, 'm' Mario Hugo, 'c' Calcetin con Rombos Man.
-// Rooms: bodega (NW), control (NE), pasillo (center), camarin (W), estudio (E), salida (S).
+// Rooms in a 3x2 grid: bodega, pasillo, control (top); camarin, estudio, salida (bottom).
 const MAP = [
-  '################################################',
-  '#..................#........#..................#',
-  '#..................#........#..................#',
-  '#..xx.T.......xx...#......T.#...xxxxx..xxxxx...#',
-  '#..x.....N.....x...#........#..................#',
-  '#..................#........#................H.#',
-  '#..............................................#',
-  '#.............H................m...............#',
-  '#....H....Z........#........#..................#',
-  '#..................#........#.........N........#',
-  '#..x...............#........#....T.........T...#',
-  '#...x.......T..x...#........#..................#',
-  '#..................#........#..................#',
-  '#..................#.H......#..................#',
-  '#########..#########........#########..#########',
-  '#..................#........#..................#',
-  '#..................#........#..................#',
-  '#.H..xxxx....c.....#......N.#...p............T.#',
-  '#..................#........#.....xxxxxxxx.....#',
-  '#....................................H.........#',
-  '#........N.....................................#',
-  '#..................#........#..................#',
-  '#...............T..#........#.......1..2..N....#',
-  '#.H................#........#..T...............#',
-  '#...........H......####..####................H.#',
-  '#..................##......##..................#',
-  '#####################......#####################',
-  '                    #......#                    ',
-  '                    #......#                    ',
-  '                    #......#                    ',
-  '                    #K.....#                    ',
-  '                    #......#                    ',
-  '                    #.....H#                    ',
-  '                    #......#                    ',
-  '                    #......#                    ',
-  '                    ###EE###                    ',
+  '##################################',
+  '#..........#..........#..........#',
+  '#.xx.....x.#....T.....#.xxx..xxx.#',
+  '#........x.#..........#..........#',
+  '#..T.Z.....#..x....x..#........H.#',
+  '#..........#..........#..........#',
+  '#..........#..........#.T........#',
+  '#....xx..H.#..........#..........#',
+  '#...................N............#',
+  '#..........................N.....#',
+  '#.x........#..........#..........#',
+  '#.....N....#..........#..........#',
+  '#..........#..x....x..#........T.#',
+  '#.......T..#..........#..........#',
+  '#.H........#..........#..m.......#',
+  '#..........#.H........#..........#',
+  '#..........#..........#..........#',
+  '#####..#########..#########..#####',
+  '#..........#..........#..........#',
+  '#.H.....c..#.T.....p..#..........#',
+  '#...xxx....#..........#..........#',
+  '#..........#..........#........H.#',
+  '#........H.#..xxxxxx..#..........#',
+  '#..........#.....H....#..........#',
+  '#..........#..........#..........#',
+  '#................................#',
+  '#....N........................x..#',
+  '#..........#........T.#..........#',
+  '#..........#...1..2...#..........#',
+  '#..........#..........#..........#',
+  '#.......T..#.N........#..K.......#',
+  '#.H........#........H.#..........#',
+  '#..........#..........#..........#',
+  '#..........#..........#..........#',
+  '###########################EE#####',
 ];
 const MW = MAP[0].length;
 const MH = MAP.length;
@@ -238,32 +237,30 @@ function makeTextures(scene) {
   });
   makeTile(scene, 'arrow', (g) => g.fillStyle(0xe1ff00).fillTriangle(3, 3, 13, 8, 3, 13));
   // Soft light discs used to "erase" darkness: normal and hidden (tighter vignette).
-  makeLight(scene, 'light', T * 3);
-  makeLight(scene, 'lightS', T * 1.5);
+  makeLight(scene, 'light', T * 5);
+  makeLight(scene, 'lightS', T * 2.5);
+  makeLight(scene, 'lightT', T * 2.5, 0.6); // Tulio's faint halo
 }
 
-function makeLight(scene, key, r) {
+function makeLight(scene, key, r, a = 1) {
   const cv = scene.textures.createCanvas(key, r * 2, r * 2);
   const ctx = cv.getContext();
   const grd = ctx.createRadialGradient(r, r, 0, r, r, r);
-  grd.addColorStop(0, 'rgba(0,0,0,1)');
-  grd.addColorStop(0.6, 'rgba(0,0,0,0.85)');
+  grd.addColorStop(0, 'rgba(0,0,0,' + a + ')');
+  grd.addColorStop(0.6, 'rgba(0,0,0,' + a * 0.85 + ')');
   grd.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, r * 2, r * 2);
   cv.refresh();
 }
 
-// --- Rooms (tile rects, interior) used by Tulio's patrol ---
-const ROOMS = [
-  [1, 1, 18, 13], // bodega
-  [29, 1, 46, 13], // control
-  [20, 1, 27, 23], // pasillo
-  [1, 15, 18, 25], // camarin
-  [29, 15, 46, 25], // estudio
-  [21, 25, 26, 34], // salida
-];
-const CAPTIVE = { x: 2 * T + 8, y: 12 * T + 8 }; // where kidnapped players are left (bodega)
+// --- Rooms: tile rects including walls. Each fills a player's half of the screen at 2x zoom. ---
+const RECTS = [[0, 0, 11, 17], [11, 0, 22, 17], [22, 0, 33, 17], [0, 17, 11, 34], [11, 17, 22, 34], [22, 17, 33, 34]];
+const ROOMS = RECTS.map(([a, b, c, d]) => [a + 1, b + 1, c - 1, d - 1]); // interiors (patrol, room lookup)
+// Door tiles belong to no room, so the camera keeps the old room until you step fully inside.
+const roomAt = (px, py) => ROOMS.findIndex(([a, b, c, d]) => px >= a * T && px < (c + 1) * T && py >= b * T && py < (d + 1) * T);
+const roomCenter = (i) => { const [a, b, c, d] = RECTS[i]; return [((a + c + 1) * T) / 2, ((b + d + 1) * T) / 2]; };
+const CAPTIVE = { x: 4 * T + 8, y: 15 * T + 8 }; // where kidnapped players are left (bodega)
 const walkable = (tx, ty) => !blocks(tileAt(tx, ty));
 const BLOCK_SIGHT = '# x';
 
@@ -563,8 +560,10 @@ class Play extends Phaser.Scene {
     const camB = this.cameras.add(W / 2, 0, W / 2, H);
     this.cams = [camA, camB];
     this.cams.forEach((cam, i) => {
-      cam.setZoom(ZOOM).setBounds(0, 0, MW * T, MH * T).setRoundPixels(true).setBackgroundColor(0x000000);
-      cam.startFollow(this.players[i].spr, true, 0.15, 0.15);
+      // Fixed room cameras: each half shows the whole room its player is in.
+      const p = this.players[i];
+      p.room = roomAt(p.spr.x, p.spr.y);
+      cam.setZoom(ZOOM).setRoundPixels(true).setBackgroundColor(0x000000).centerOn(...roomCenter(p.room));
       cam.ignore(this.ui);
     });
     this.cameras.add(0, 0, W, H).ignore(this.world);
@@ -656,8 +655,7 @@ class Play extends Phaser.Scene {
   }
 
   pickPatrol() {
-    const inRoom = (r, s) => s.x >= r[0] * T && s.x < (r[2] + 1) * T && s.y >= r[1] * T && s.y < (r[3] + 1) * T;
-    const wts = ROOMS.map((r) => (this.players.some((p) => !p.caught && inRoom(r, p.spr)) ? 2 : 1));
+    const wts = ROOMS.map((r, i) => (this.players.some((p) => !p.caught && !p.out && roomAt(p.spr.x, p.spr.y) === i) ? 2 : 1));
     let n = Math.random() * wts.reduce((a, b) => a + b);
     const r = ROOMS[wts.findIndex((wt) => (n -= wt) < 0)];
     const pt = this.randomIn(r);
@@ -688,6 +686,8 @@ class Play extends Phaser.Scene {
     p.hide = null;
     p.seenHide = false;
     p.spr.setVisible(true).setTint(0x606060).setPosition(CAPTIVE.x, CAPTIVE.y);
+    p.room = 0;
+    this.cams[p.i].centerOn(...roomCenter(0));
     u.chased = false;
     u.calm = 2;
     u.target = null;
@@ -804,7 +804,7 @@ class Play extends Phaser.Scene {
     this.got = [0, 0, 0, 0];
     const slots = A.Shuffle([0, 1, 2, 3]);
     // The co-op generator always uses the two bodega stations; the rest get 3 random tasks.
-    const bod = this.pts.T.filter((t) => t.x < 19 * T && t.y < 14 * T);
+    const bod = this.pts.T.filter((t) => roomAt(t.x, t.y) === 0);
     const rest = A.Shuffle(this.pts.T.filter((t) => !bod.includes(t)));
     const names = A.Shuffle(['wires', 'tune', 'simon', 'lights']).slice(0, 3);
     this.tasks = [{ name: 'gen', slot: slots[0], pts: bod }, ...names.map((n, i) => ({ name: n, slot: slots[i + 1], pts: [rest[i]] }))];
@@ -923,8 +923,10 @@ class Play extends Phaser.Scene {
       if (dx) p.spr.setFlipX(dx < 0);
       if (dx || dy) p.step += dt;
       p.spr.setTexture(p.key + (Math.floor(p.step * 6) % 2));
+      const r = roomAt(p.spr.x, p.spr.y);
+      if (r >= 0 && r !== p.room) { p.room = r; this.cams[p.i].pan(...roomCenter(r), 350, 'Sine.easeInOut', true); } // room-to-room slide
 
-      if (DOOR && p.spr.y >= 35 * T) { p.out = true; p.spr.setVisible(false); return this.checkWin(); }
+      if (DOOR && p.spr.y >= (MH - 1) * T) { p.out = true; p.spr.setVisible(false); return this.checkWin(); }
 
       const mate = this.players[1 - p.i];
       const rescue = mate.caught && Math.hypot(mate.spr.x - p.spr.x, mate.spr.y - p.spr.y) < T * 1.5;
@@ -1111,13 +1113,14 @@ class Play extends Phaser.Scene {
       if (!this.over) this.updateTulio(dt);
     }
 
-    this.dark.fill(0x000000, 0.92);
+    this.dark.clear().fill(0x000000, 0.62); // dim ambient: the whole room reads, lights reveal detail
     for (const p of this.players) {
       if (p.out) continue;
-      const k = p.hide ? 'lightS' : 'light', r = p.hide ? T * 1.5 : T * 3;
+      const k = p.hide ? 'lightS' : 'light', r = p.hide ? T * 2.5 : T * 5;
       this.dark.erase(k, Math.round(p.spr.x) - r, Math.round(p.spr.y) - r);
     }
     const t = this.tu.spr, f = this.tu.face, g = this.cone.clear().fillStyle(0x000000, 0.55);
+    this.dark.erase('lightT', Math.round(t.x) - T * 2.5, Math.round(t.y) - T * 2.5);
     g.slice(t.x, t.y, TU.view, f - TU.fov / 2, f + TU.fov / 2).fillPath();
     this.dark.erase(this.cone);
 

@@ -665,6 +665,7 @@ const alive = (st) => st.ppl.filter((p) => p.st < 3);
 const person = (n, k) => ({ n, k, st: 0, w: 1, f: 1, th: 0, hu: 0 }); // w/f: recibe agua/comida
 const has = (st, req) => !req || req.split('+').every((k) => st.inv[k] > 0 || st.ppl.some((p) => p.k == k && p.st < 3));
 const STATE = ['sano', 'herido', 'enfermo', 'muerto'];
+const LIM = { w: 5, f: 12 }; // días sin agua / sin comida antes de morir
 const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bonus de radio)
 
 const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
@@ -758,8 +759,8 @@ function stat(st) {
   st.cT.setText(st.c);
   st.pplT.forEach((t) => t.destroy());
   st.pplT = st.ppl.map((p, i) =>
-    txt(s, 532, 130 + i * 20, p.n + ': ' + STATE[p.st] + (p.st < 3 && p.th ? ' · sed ' + p.th : '') + (p.st < 3 && p.hu > 1 ? ' · hambre ' + p.hu : ''),
-      14, p.st < 3 && (p.th > 1 || p.hu > 3) ? '#ff6b4a' : SC[p.st]));
+    txt(s, 532, 130 + i * 20, p.n + ': ' + STATE[p.st] + (p.st < 3 && p.th ? ' · sed ' + p.th : '') + (p.st < 3 && p.hu > 2 ? ' · hambre ' + p.hu : ''),
+      14, p.st < 3 && (p.th >= LIM.w - 2 || p.hu >= LIM.f - 3) ? '#ff6b4a' : SC[p.st]));
   st.statC.add(st.pplT);
   const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
   st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(140 + st.ppl.length * 20);
@@ -824,11 +825,11 @@ function nextDay(s) {
   log(st, 'Día ' + st.day + ' · ' + (short ? 'No alcanzó para todos.' : mile || flavor(st)), short ? '#ff9a3b' : mile ? '#fff' : '#cfcfe0');
   for (const p of alive(st)) {
     const me = p.n == 'Tú';
-    if (p.th >= 3 || p.hu >= 6) {
-      st.miss[p.th >= 3 ? 'Más agua' : 'Más comida'] = 1;
+    if (p.th >= LIM.w || p.hu >= LIM.f) {
+      st.miss[p.th >= LIM.w ? 'Más agua' : 'Más comida'] = 1;
       p.st = 3;
-      log(st, (me ? 'Moriste' : p.n + ' murió') + (p.th >= 3 ? ' de sed.' : ' de hambre.'), '#ff4a4a');
-    } else if (p.th == 2 || p.hu == 4) log(st, p.n + (me ? ' tienes' : ' tiene') + (p.th == 2 ? ' mucha sed.' : ' mucha hambre.'), '#ff9a3b');
+      log(st, (me ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), '#ff4a4a');
+    } else if (p.th == LIM.w - 1 || p.hu == LIM.f - 2) log(st, p.n + (me ? ' tienes' : ' tiene') + (p.th == LIM.w - 1 ? ' mucha sed.' : ' mucha hambre.'), '#ff9a3b');
   }
   for (const p of alive(st)) {
     if (p.st == 0 || Math.random() > (p.st == 2 ? 0.12 : 0.06)) continue;

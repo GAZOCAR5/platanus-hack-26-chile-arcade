@@ -37,8 +37,8 @@ Tierra caricaturesca partida en dos. "COMIENZA EL APOCALIPSIS". En 2P la pantall
 - Recursos contables: **agua** y **comida** en raciones. Cada persona consume 1 de cada una por día.
   Raciones: bidón 12, botella 3, bebida 6 · lata 4, porotos 4 (con abrelatas o cortaplumas), tallarines 5 (con gas),
   marraqueta 3, charqui 6, manjar 4, sopaipillas 2, completo 2.
-- Simulación (400 runs, opciones al azar): loot pobre ≈ 5 días, típico ≈ 11 (2 % rescate), greedy ≈ 16 (19 % rescate).
-- Cada persona: sana / herida / enferma / muerta, con su propia sed y hambre. 3 días sin agua o 6 sin comida → muere.
+- Simulación (300 runs, opciones al azar, sin racionar): loot pobre ≈ 7 días, típico ≈ 11 (6 % rescate), greedy ≈ 16 (23 % rescate).
+- Cada persona: sana / herida / enferma / muerta, con su propia sed y hambre. 5 días sin agua o 12 sin comida → muere (`LIM`).
 - **Raciones**: tarjeta RACIONES el día 1, cada 4 días y cuando mañana no alcanza para todos. Por persona: agua y comida,
   solo agua, solo comida o nada (←→ cambia, B1 listo).
 - **Historias encadenadas**: un evento deja una marca (`#saq`, `#carta`, `#amigo`, `#venganza`, `#radio`) y su continuación

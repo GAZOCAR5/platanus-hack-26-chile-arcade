@@ -237,7 +237,7 @@ function genFloor(f, extra) {
     for (let x = 22; x < 32; x += 2) place('reposera', x, 1, 1);
     place('barra', 25, 13, -1);
     rugs.push([12 * T, 7.5 * T, 9 * T, 3 * T, 0.1], [41.5 * T, 7.5 * T, 7 * T, 3 * T, -0.1]);
-    for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
+    for (let i = 0; i < 6; i++) put(pick(EGGS), free(5, 2, 47, 12));
     for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
     labels.push([6, 2, 'PH · Mansión del cuico']);
     return { g, d, items, labels, rugs, furn };
@@ -604,7 +604,7 @@ function stepPlayer(s, p, t, dt) {
     [600, 480].forEach((fq, j) => tone(s, fq, 0.05, 'square', 0.06, j * 0.12));
   }
   if (p.f == 0 && p.bag.length) {
-    say(st, 'Al bunker: ' + p.bag.map((it) => ITEMS[it.k][0]).join(', '));
+    say(st, 'Objetos al bunker: ' + p.bag.length); // la lista completa no cabía en pantalla
     st.bunker.push(...p.bag);
     [523, 659, 784].forEach((fq, j) => tone(s, fq, 0.12, 'triangle', 0.15, j * 0.08));
     p.bag = [];
@@ -635,7 +635,8 @@ function stepPlayer(s, p, t, dt) {
   p.lt.setVisible(!!show);
   if (show) p.lt.setText(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
   p.dot.y = hy(p.f) + 17;
-  p.bt.setText(p.k.slice(0, 2) + ' ' + used(p) + '/' + SLOTS + ' ' + p.bag.map((it) => ITEMS[it.k][0]).join(', '));
+  // en 2P la lista de P1 se montaba sobre la de P2: solo el conteo
+  p.bt.setText(p.k.slice(0, 2) + ' ' + u + '/' + SLOTS + (st.P[1] ? '' : ' ' + p.bag.map((it) => ITEMS[it.k][0]).join(', ')));
 }
 
 function endLoot(s) {
@@ -1076,8 +1077,9 @@ function nextDay(s) {
   }
   const nw = ppl.filter((p) => p.w).length, nf = ppl.filter((p) => p.f).length;
   if (ppl.some((p) => !p.w || !p.f) && st.day - st.lastR >= 2) openRation(s, 'Hay gente racionada. ¿Siguen así?');
-  else if ((st.a < nw || st.c < nf) && st.day - st.lastR >= 2) openRation(s, 'Mañana no alcanza para todos. ¿A quién le das?');
-  else if (st.day - st.lastR >= 4) openRation(s, 'Revisar las raciones. Quedan ' + st.a + ' de agua y ' + st.c + ' de comida.');
+  // con 0 de un recurso no hay nada que repartir: solo pregunta si queda algo
+  else if (((st.a && st.a < nw) || (st.c && st.c < nf)) && st.day - st.lastR >= 2) openRation(s, 'Mañana no alcanza para todos. ¿A quién le das?');
+  else if (st.day - st.lastR >= 4 && st.a + st.c) openRation(s, 'Revisar las raciones. Quedan ' + st.a + ' de agua y ' + st.c + ' de comida.');
 }
 
 const RMODE = ['Agua y comida', 'Solo agua', 'Solo comida', 'Nada'];
@@ -1097,8 +1099,9 @@ function openRation(s, why) {
   drawRation(st);
 }
 
+// La tarjeta tiene 7 filas: 6 personas + LISTO. shortcut: de la séptima persona en adelante mantienen su ración, sin poder cambiarla.
 function drawRation(st) {
-  const ppl = alive(st), ev = st.ev;
+  const ppl = alive(st).slice(0, 6), ev = st.ev;
   st.rT.forEach((t, i) =>
     t.setText(i > ppl.length ? '' : (i == ev.cur ? '> ' : '  ') + (i < ppl.length ? ppl[i].n.padEnd(23) + RMODE[mode(ppl[i])] : 'LISTO'))
       .setColor(i == ev.cur ? '#ffd23b' : i < ppl.length && mode(ppl[i]) ? '#ff9a3b' : '#fff'));
@@ -1207,7 +1210,7 @@ function stepLog(s, dt) {
       return;
     }
     if (ev.ration) {
-      const ppl = alive(st), n = ppl.length, v = any('D') - any('U'), h = any('R') - any('L');
+      const ppl = alive(st).slice(0, 6), n = ppl.length, v = any('D') - any('U'), h = any('R') - any('L');
       if (v) ev.cur = (ev.cur + v + n + 1) % (n + 1);
       if (h && ev.cur < n) {
         const p = ppl[ev.cur], m = (mode(p) + h + 4) % 4;
@@ -1310,7 +1313,7 @@ function update(t, dt) {
     st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : '#ffd23b');
     if ((st.msgT -= dt) <= 0) st.msg.setText('');
     const inBunker = st.P.every((p) => p.f == 0);
-    if (inBunker && st.P.length && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
+    if (inBunker && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
     if (st.left <= 0) endLoot(s);
   } else if (st.ph == 'log') {
     stepLog(s, dt);
@@ -1393,8 +1396,8 @@ function rumble(s, d, v) {
 function createControls(scene) {
   scene.ctl = { held: Object.create(null), pressed: Object.create(null) };
   const onKeyDown = (event) => {
-    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)], c = scene.sound.context;
-    if (c && c.state == 'suspended') c.resume(); // primera tecla: se habilita el audio
+    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
+    ac(scene); // primera tecla: se habilita el audio
     if (!code) return;
     if (!scene.ctl.held[code]) scene.ctl.pressed[code] = true;
     scene.ctl.held[code] = true;

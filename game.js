@@ -672,7 +672,7 @@ const FLAVOR = [
   'Contaron los tarros tres veces.', 'Sueñas con una sopaipilla pasada.', 'El techo cruje, pero aguanta.',
   'Alguien jura que escuchó un helicóptero. No era.', 'Discusión eterna: ¿completo o churrasco cuando salgamos?',
   'Alguien pregunta si mañana hay que ir a trabajar. Risas nerviosas.', 'Se juega al "veo veo". En la oscuridad.',
-  'Alguien hace la lista de la gente a la que le debe plata.', 'Se escucha un "¿Aló?" lejano. Nadie contesta.',
+ 
   'Alguien cuenta las grietas del techo. Van 41.', 'Hoy nadie habló. Mucho.',
 ];
 // frases que solo salen si tienes a alguien o algo
@@ -881,8 +881,9 @@ function startLog(s) {
   st.dayT = txt(s, 776, 12, '', 30).setOrigin(1, 0);
   st.aT = txt(s, 532, 82, '', 30, '#3b9cff');
   st.cT = txt(s, 652, 82, '', 30, '#ff9a3b');
+  st.spT = [592, 712].map((x) => txt(s, x, 95, '', 12, '#9cc9ff')); // gasto diario según la regla de raciones
   st.toolT = txt(s, 532, 0, '', 13, '#999').setWordWrapWidth(236);
-  st.statC.add([st.dayT, st.aT, st.cT, st.toolT]);
+  st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, st.toolT]);
   // tarjeta de evento
   st.card = s.add.container(W / 2, 452).setVisible(false);
   st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x1b1b22).setStrokeStyle(3, 0xffd23b);
@@ -918,7 +919,7 @@ function layoutLog(st) {
   const max = (st.ev || st.over ? 300 : 584) - 60;
   while (st.rows.reduce((a, r) => a + r.height + 8, 0) > max) st.rows.shift().destroy();
   let y = 60;
-  for (const r of st.rows) { r.y = y; y += r.height + 8; }
+  st.rows.forEach((r, i) => { r.y = y; y += r.height + 8; r.setAlpha(0.35 + (0.65 * (i + 1)) / st.rows.length); });
 }
 
 function stat(st) {
@@ -926,10 +927,11 @@ function stat(st) {
   st.dayT.setText('DÍA ' + st.day);
   st.aT.setText(st.a);
   st.cT.setText(st.c);
+  st.spT.forEach((t, i) => t.setText('-' + alive(st).filter((p) => (i ? p.f : p.w)).length + '/día'));
   st.pplT.forEach((t) => t.destroy());
   st.pplT = st.ppl.map((p, i) =>
-    txt(s, 532, 130 + i * 20, p.n + ': ' + STATE[p.st] + (p.st < 3 && p.th ? ' · sed ' + p.th : '') + (p.st < 3 && p.hu > 2 ? ' · hambre ' + p.hu : ''),
-      14, p.st < 3 && (p.th >= LIM.w - 2 || p.hu >= LIM.f - 3) ? '#ff6b4a' : SC[p.st]));
+    txt(s, 532, 130 + i * 20, p.n + ': ' + (p.st > 2 ? STATE[p.st] : [p.st && STATE[p.st], p.th && 'sed ' + p.th, p.hu > 2 && 'hambre ' + p.hu].filter(Boolean).join(' · ') || 'bien'),
+      12, p.st < 3 && (p.th >= LIM.w - 2 || p.hu >= LIM.f - 3) ? '#ff6b4a' : SC[p.st]));
   // a la derecha de cada persona, qué le da la regla de raciones
   st.pplT.push(...alive(st).map((p) => txt(s, 776, 130 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 14, mode(p) ? '#ff9a3b' : '#9cc9ff').setOrigin(1, 0)));
   st.statC.add(st.pplT);
@@ -990,20 +992,21 @@ function flavor(st) {
 function nextDay(s) {
   const st = s.st;
   st.day++;
-  let short = 0, ga = 0, gc = 0; // ga/gc: lo que se repartió hoy según la regla de raciones
+  let short = 0;
   for (const p of alive(st)) {
-    if (p.w && st.a > 0) { st.a--; ga++; p.th = 0; } else { p.th++; short |= p.w; }
-    if (p.f && st.c > 0) { st.c--; gc++; p.hu = 0; } else { p.hu++; short |= p.f; }
+    if (p.w && st.a > 0) { st.a--; p.th = 0; } else { p.th++; short |= p.w; }
+    if (p.f && st.c > 0) { st.c--; p.hu = 0; } else { p.hu++; short |= p.f * 2; }
   }
   const mile = MILE[st.day];
-  log(st, 'Día ' + st.day + ' · ' + ga + ' agua, ' + gc + ' comida · ' + (short ? 'No alcanzó para todos.' : mile || flavor(st)), short ? '#ff9a3b' : mile ? '#fff' : '#cfcfe0');
+  log(st, 'Día ' + st.day + ' · ' + (short ? ['', 'Falta agua.', 'Falta comida.', 'Falta agua y comida.'][short] : mile || flavor(st)), short ? '#ff9a3b' : mile ? '#fff' : '#cfcfe0');
+  const sed = [], ham = [];
   for (const p of alive(st)) {
-    const me = p.n == 'Tú';
     if (p.th >= LIM.w || p.hu >= LIM.f) {
       p.st = 3;
-      log(st, (me ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), '#ff4a4a');
-    } else if (p.th == LIM.w - 1 || p.hu == LIM.f - 2) log(st, p.n + (me ? ' tienes' : ' tiene') + (p.th == LIM.w - 1 ? ' mucha sed.' : ' mucha hambre.'), '#ff9a3b');
+      log(st, (p.n == 'Tú' ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), '#ff4a4a');
+    } else (p.th >= LIM.w - 2 ? sed : p.hu >= LIM.f - 3 ? ham : []).push(p.n);
   }
+  if (sed.length + ham.length) log(st, [sed.length && 'Sed: ' + sed.join(', '), ham.length && 'Hambre: ' + ham.join(', ')].filter(Boolean).join(' · '), '#ff9a3b');
   for (const p of alive(st)) {
     if (p.st == 0 || Math.random() > (p.st == 2 ? 0.12 : 0.06)) continue;
     if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.', '#2ec4a0'); if (Math.random() < 0.3) st.inv.botiquin--; }
@@ -1039,6 +1042,7 @@ const mode = (p) => (p.w ? (p.f ? 0 : 1) : p.f ? 2 : 3);
 function openRation(s, why) {
   const st = s.st;
   st.lastR = st.day;
+  st.rs = alive(st).map(mode).join();
   st.ev = { ration: 1, cur: 0, t: CHOICE_MS };
   setTag(st, 'q');
   st.cardT.setText(why);
@@ -1055,8 +1059,7 @@ function drawRation(st) {
     t.setText(i > ppl.length ? '' : (i == ev.cur ? '> ' : '  ') + (i < ppl.length ? ppl[i].n.padEnd(23) + RMODE[mode(ppl[i])] : 'LISTO'))
       .setColor(i == ev.cur ? '#ffd23b' : i < ppl.length && mode(ppl[i]) ? '#ff9a3b' : '#fff'));
   st.sel.setSize(660, 22).setY(st.rT[ev.cur].y).setVisible(true);
-  const nw = ppl.filter((p) => p.w).length, nf = ppl.filter((p) => p.f).length;
-  st.hint.setText('Gasto diario: ' + nw + ' agua, ' + nf + ' comida   ←→ cambiar   B1 listo').setColor('#9cc9ff');
+  st.hint.setText('←→ cambiar   B1 listo').setColor('#9cc9ff');
 }
 
 function closeRation(st) {
@@ -1066,7 +1069,7 @@ function closeRation(st) {
   st.rT.forEach((t) => t.setText(''));
   st.sel.setSize(660, 34);
   st.lt = DAY_MS;
-  log(st, skip.length ? 'Se raciona a: ' + skip.join(', ') + '.' : 'Raciones completas para todos.', '#9cc9ff');
+  if (ppl.map(mode).join() != st.rs) log(st, 'Se raciona a: ' + (skip.join(', ') || 'nadie') + '.', '#9cc9ff');
 }
 
 function openCard(s, text, opts, kind) {

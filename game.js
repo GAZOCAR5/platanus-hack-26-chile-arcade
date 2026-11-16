@@ -54,7 +54,6 @@ const ITEMS = {
   huaso: ['Sombrero de huaso', 1, 'e'], loteria: ['Cartón de lotería premiado', 1, 'e'], cueca: ['Pañuelo de cueca', 1, 'e'],
   copa: ['Réplica de la Copa América', 2, 'e'],
 };
-const CAT = { a: 0x3b9cff, c: 0xff9a3b, h: 0x2ec4a0, p: 0xff6fae, e: 0xffd23b };
 const EGGS = Object.keys(ITEMS).filter((k) => ITEMS[k][2] == 'e');
 const LOOT = Object.keys(ITEMS).filter((k) => 'ach'.includes(ITEMS[k][2]));
 const COMMON = ['botella', 'lata', 'marraqueta', 'linterna', 'pilas'];
@@ -167,7 +166,7 @@ const qualifies = (np, sc) => sc > 0 && RANK && (RANK[np].length < RMAX || sc > 
 // ---------- generación del edificio ----------
 
 function genFloor(f, extra) {
-  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [];
+  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [], rugs = [];
   const set = (x, y, v, t) => { g[y * GW + x] = v; if (t !== undefined) d[y * GW + x] = t; };
   const open = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 0, t); };
   const put = (k, xy) => xy && items.push({ k, f, x: xy[0] * T + T / 2, y: xy[1] * T + T / 2 });
@@ -188,7 +187,7 @@ function genFloor(f, extra) {
     open(1, 1, 22, 13, 11);
     set(1, 6, 2);
     labels.push([4, 2, 'BUNKER -3: aquí se vacía la mochila']);
-    return { g, d, items, labels };
+    return { g, d, items, labels, rugs };
   }
 
   open(1, 6, 48, 8, 0);
@@ -203,7 +202,7 @@ function genFloor(f, extra) {
     for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
     for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
     labels.push([6, 2, 'PH · Mansión del cuico']);
-    return { g, d, items, labels };
+    return { g, d, items, labels, rugs };
   }
 
   let n = 0;
@@ -214,6 +213,7 @@ function genFloor(f, extra) {
       const family = f == FAMILY_FLOOR && n == 0, ti = family ? 0 : 1 + rnd(THEMES.length - 1), th = THEMES[ti];
       open(x, y0, x1, y1, ti + 1);
       const sx = x + 3 + rnd(x1 - x - 5);
+      rugs.push([((x + sx) / 2) * T, ((y0 + y1 + 1) / 2) * T, (sx - x) * T * 0.6, 2 * T, (Math.random() - 0.5) * 0.6]);
       for (let y = y0; y <= y1; y++) set(sx, y, 1);
       set(sx, y0 + 1 + rnd(2), 0, ti + 1);
       let dx;
@@ -229,7 +229,7 @@ function genFloor(f, extra) {
       x = x1 + 2;
     }
   }
-  return { g, d, items, labels };
+  return { g, d, items, labels, rugs };
 }
 
 // Autocheck: las escaleras que corresponden existen, y cada objeto y escalera se alcanza.
@@ -244,15 +244,33 @@ function reachableAll(F, f) {
   return F.items.every((it) => seen[Math.floor(it.y / T) * GW + Math.floor(it.x / T)]) && [6, 8].every((r) => seen[r * GW + 1] || F.g[r * GW + 1] == 1);
 }
 
-// Muebles: capas [color, x, y, w, h] dentro de un tile de 32 px
+// Recetas de dibujo top-down: "cmd args col|...", coords desde el centro, color en hex corto (f80 = ff8800).
+// c x y r · e x y w h · r x y w h · o x y w h (redondeado) · t x1 y1 x2 y2 x3 y3 · l x1 y1 x2 y2 (línea) · R ángulo
+function paint(g, rec) {
+  for (const cmd of rec.split('|')) {
+    const [k, ...a] = cmd.split(' '), n = a.map(Number), col = parseInt(a[a.length - 1].replace(/./g, '$&$&'), 16);
+    if (k == 'R') g.rotateCanvas(n[0]);
+    else if (k == 'l') g.lineStyle(2, col).lineBetween(n[0], n[1], n[2], n[3]);
+    else {
+      g.fillStyle(col);
+      if (k == 'c') g.fillCircle(n[0], n[1], n[2]);
+      if (k == 'e') g.fillEllipse(n[0], n[1], n[2], n[3]);
+      if (k == 'r') g.fillRect(n[0], n[1], n[2], n[3]);
+      if (k == 'o') g.fillRoundedRect(n[0], n[1], n[2], n[3], 3);
+      if (k == 't') g.fillTriangle(n[0], n[1], n[2], n[3], n[4], n[5]);
+    }
+  }
+}
 const FURN = [
-  [[0x6b4f3a, 2, 3, 28, 26], [0xf2f2f2, 5, 5, 22, 7], [0x8a3b3b, 5, 14, 22, 13]], // cama
-  [[0x4a3f6b, 2, 8, 28, 20], [0x5d5285, 2, 4, 28, 8], [0x3a3157, 2, 8, 5, 20], [0x3a3157, 25, 8, 5, 20]], // sofá
-  [[0x7a5a3c, 3, 6, 26, 20], [0xeeeeee, 7, 10, 7, 7], [0xeeeeee, 18, 13, 7, 7]], // mesa
-  [[0xd8d8e0, 5, 2, 22, 28], [0x9a9aa8, 6, 12, 20, 1], [0x9a9aa8, 22, 5, 2, 5]], // refri
-  [[0x7a4a2c, 10, 18, 12, 11], [0x3b8a3b, 6, 3, 20, 17]], // planta
-  [[0x222222, 3, 9, 26, 16], [0x3b6fd6, 5, 11, 22, 12], [0x222222, 13, 25, 6, 4]], // tele
+  'o -14 -13 28 27 643|o -11 -10 22 7 eee|o -11 -1 22 13 a44', // cama
+  'o -15 -6 30 14 549|o -15 -12 30 8 659|o -16 -9 6 17 435|o 10 -9 6 17 435', // sofá
+  'c 0 -13 4 532|c 0 13 4 532|c -13 0 4 532|c 13 0 4 532|c 0 0 10 a75|c -3 -2 2 eee|c 4 3 2 eee', // mesa con sillas
+  'o -10 -13 20 26 ddd|r -9 -1 18 1 99a|r 6 -10 2 6 99a', // refri
+  'c 0 0 9 742|c -4 -3 7 3a3|c 4 2 7 4a4|c 0 -5 6 373', // planta
+  'o -15 -4 30 7 222|o -13 -3 26 4 36d|o -4 3 8 4 222', // tele
+  'o -13 -9 26 18 864|r -11 -7 10 14 975|r 1 -7 10 14 975|c -2 0 1 321|c 3 0 1 321', // mueble
 ];
+const RUG = [0x8a3b3b, 0x3b5a8a, 0x8a7a3b, 0x3b7a5a, 0x6b3b8a];
 
 function drawFloor(s, f, F) {
   const gr = s.make.graphics({ add: false });
@@ -265,12 +283,22 @@ function drawFloor(s, f, F) {
     }
     gr.fillStyle(c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
     if ((x + y) / T % 2) gr.fillStyle(0x000000, 0.07).fillRect(x, y, T, T);
-    if (c == 4) for (const [col, a, b, w, h] of FURN[(i * 7 + f * 3) % FURN.length]) gr.fillStyle(col).fillRect(x + a, y + b, w, h);
     if (c == 5) gr.fillStyle(0x7fc0ff, 0.6).fillRect(x + 4 + (i % 3) * 6, y + 6 + (i % 4) * 6, 12, 2);
     if (c == 2 || c == 3) {
       gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(0xffffff);
       c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
     }
+  }
+  // alfombras giradas y muebles con un ángulo propio: rompen la grilla
+  for (const [x, y, w, h, a] of F.rugs) {
+    gr.save().translateCanvas(x, y).rotateCanvas(a).fillStyle(RUG[(x + y) % 5], 0.85).fillRect(-w / 2, -h / 2, w, h);
+    gr.lineStyle(2, 0xffffff, 0.3).strokeRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).restore();
+  }
+  for (let i = 0; i < GW * GH; i++) {
+    if (F.g[i] != 4) continue;
+    gr.save().translateCanvas((i % GW) * T + T / 2, Math.floor(i / GW) * T + T / 2).rotateCanvas(((i * 37) % 9 - 4) * 0.12);
+    paint(gr, FURN[(i * 13 + f * 3) % FURN.length]);
+    gr.restore();
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
   gr.destroy();
@@ -278,29 +306,64 @@ function drawFloor(s, f, F) {
   for (const [x, y, l] of F.labels) s.WL.add(txt(s, x * T, fy(f) + y * T + 8, l, 11, '#ffffffaa'));
 }
 
-// Íconos de 24 px: a=agua c=comida h=herramienta e=easter egg, y una cara por persona
-const FACES = { abuela: [0xf0c8a8, 0xcccccc], perro: [0xa0703c, 0x5a3a1c], gato: [0x9a9aa8, 0x6a6a78], vecina: [0xf0c8a8, 0x9b4bd0], pato: [0xf0c8a8, 0x2a5fb0] };
+// Un ícono top-down por objeto (32 px)
+const ICON = {
+  bidon: 'o -9 -10 18 20 39f|o -5 -13 10 5 26d|c 4 -6 3 fff|r -7 -4 3 12 9cf',
+  botella: 'R .6|o -4 -10 8 18 7cf|r -2 -13 4 4 fff',
+  bebida: 'c 0 0 9 622|c 0 0 4 d22|c 0 0 2 fff',
+  lata: 'c 0 0 8 ccd|c 0 0 6 f93|o -2 -5 4 6 888',
+  porotos: 'c 0 0 8 ccd|c 0 0 6 632|c -2 -1 2 a63|c 2 2 2 a63',
+  tallarines: 'R -.3|o -10 -6 20 12 fd6|l -8 -3 8 -3 eb4|l -8 1 8 1 eb4',
+  marraqueta: 'R -.4|e -4 0 12 8 eb7|e 4 0 12 8 da6|l -8 0 8 0 a63',
+  charqui: 'R .3|o -9 -7 18 4 731|o -9 -2 18 4 842|o -9 3 18 4 621',
+  manjar: 'c 0 0 8 b73|c 0 0 6 fff|c 0 0 3 b73',
+  sopaipillas: 'c -4 -2 6 e93|c 4 3 6 d82|c -3 5 5 e93',
+  linterna: 'R -.5|o -10 -3 15 6 333|o 4 -5 5 10 555|c 9 0 3 fe6',
+  pilas: 'R .2|o -7 -8 6 16 222|o 1 -8 6 16 222|r -7 -8 6 5 ea2|r 1 -8 6 5 ea2',
+  radio: 'o -10 -7 20 14 445|c -4 0 4 222|r 2 -4 6 3 9cf|l 8 -7 13 -12 999',
+  botiquin: 'o -9 -8 18 16 fff|r -2 -5 4 10 d22|r -5 -2 10 4 d22',
+  encendedor: 'R .4|o -3 -7 6 14 f33|r -3 -9 6 3 aaa',
+  abrelatas: 'R -.6|o -10 -2 14 4 999|c 6 0 4 777|c 6 0 2 333',
+  cortaplumas: 'R .3|o -9 -3 16 6 d22|r -7 -1 4 2 fff|t 7 -2 13 0 7 2 ccc',
+  cinta: 'c 0 0 8 99a|c 0 0 4 223',
+  frazada: 'R .25|o -10 -8 20 16 838|r -10 -3 20 3 b5b|r -10 3 20 2 b5b',
+  mapa: 'R -.2|r -10 -7 20 14 eec|l -3 -7 -3 7 bba|l 3 -7 3 7 bba|c 5 -2 2 d22',
+  gas: 'c 0 0 11 fa2|c 0 0 5 c71|c 0 0 2 666',
+  mascarilla: 'l -8 -2 -12 -5 aab|l 8 -2 12 -5 aab|o -8 -5 16 10 eef',
+  uslero: 'R .6|o -9 -3 18 6 c94|o -13 -2 4 4 a72|o 9 -2 4 4 a72',
+  naipe: 'R -.3|o -7 -9 12 16 fff|R .5|o -5 -9 12 16 fff|c 1 -1 2 d22',
+  guitarra: 'R -.7|e -4 0 14 12 c72|e 3 0 10 9 c72|c -3 0 2 310|r 6 -1 8 2 310',
+  pisco: 'R .4|o -4 -10 8 18 dd9|r -2 -13 4 4 c94|r -4 -3 8 5 36b',
+  abuela: 'R .8|e 0 0 14 24 96b|c 1 0 7 fcb|c -3 0 5 ccc|c -7 0 3 bbb',
+  perro: 'R -.4|l -10 0 -14 -4 a73|e -2 0 20 12 a73|c 8 0 5 a73|e 7 -5 6 4 532|e 7 5 6 4 532',
+  gato: 'R .5|l -8 0 -12 6 99a|e -1 0 16 10 99a|c 7 0 4 99a|t 8 -6 5 -2 10 -3 99a',
+  vecina: 'R -.3|e 0 0 14 24 c4a|c 1 0 7 fcb|c -2 0 6 92d',
+  pato: 'R 1.2|e 0 0 14 24 36a|c 1 0 7 fcb|c -1 0 7 25b|e 6 0 6 10 25b',
+  gaviota: 't -11 -2 0 -1 -4 -8 eef|t 11 -2 0 -1 4 -8 eef|t -11 -2 11 -2 0 4 eef|o -3 4 6 5 fd3',
+  peluca: 'c -3 -3 5 111|c 3 -3 5 222|c -4 3 5 222|c 4 3 5 111|c 0 0 5 111|c 0 -6 4 222',
+  terremoto: 'c 0 0 9 dde|c 0 0 7 fd6|c -2 -2 3 fff|l 2 2 9 -9 f44',
+  volantin: 'R .785|r -8 -8 16 16 f33|r -8 -8 8 8 fd3|l 0 0 10 10 fff',
+  bip: 'R -.3|o -10 -6 20 13 39d|r -10 -3 20 2 fd3|c 6 3 2 fff',
+  lucas: 'R .2|r -11 -6 22 12 9c8|c 0 0 4 586|r -9 -4 3 8 7a6',
+  moai: 'o -7 -10 14 20 778|r -5 -4 4 2 445|r 1 -4 4 2 445|r -1 -2 2 7 445',
+  completo: 'R .5|o -11 -4 22 8 eb7|o -9 -2 18 4 c42|r -7 -3 14 2 3a3',
+  polera: 't -11 -6 -6 -9 -6 -1 eee|t 11 -6 6 -9 6 -1 eee|o -7 -9 14 18 eee|r -5 -2 10 3 d22',
+  huaso: 'c 0 0 12 432|c 0 0 7 321|c 0 0 5 432',
+  loteria: 'R .2|r -9 -11 18 22 fff|r -7 -8 14 3 f80|c -3 1 2 333|c 3 1 2 333|c 0 6 2 333',
+  cueca: 'R .5|t -10 -8 10 -8 0 10 eef|t -5 -6 5 -6 0 4 d22',
+  copa: 'c 0 0 9 fd3|c 0 0 6 c92|c 0 0 3 fd3',
+};
 function icons(s) {
-  if (s.textures.exists('ia')) return;
-  const mk = (k, fn) => { const g = s.make.graphics({ add: false }); fn(g); g.generateTexture('i' + k, 24, 24); g.destroy(); };
-  mk('a', (g) => g.fillStyle(0x3b9cff).fillRoundedRect(6, 6, 12, 17, 4).fillStyle(0xffffff).fillRect(9, 2, 6, 5).fillStyle(0xffffff, 0.5).fillRect(8, 9, 2, 10));
-  mk('c', (g) => g.fillStyle(0xff9a3b).fillRect(5, 6, 14, 15).fillStyle(0xffc27a).fillEllipse(12, 6, 14, 5).fillStyle(0xffffff).fillRect(5, 12, 14, 4));
-  mk('h', (g) => g.lineStyle(3, 0x1a8a70).strokeRect(8, 4, 8, 6).fillStyle(0x2ec4a0).fillRect(2, 9, 20, 13).fillStyle(0x1a8a70).fillRect(10, 13, 4, 4));
-  mk('e', (g) => {
-    const pts = [];
-    for (let i = 0; i < 10; i++) pts.push({ x: 12 + Math.sin((i * Math.PI) / 5) * (i % 2 ? 5 : 11), y: 13 - Math.cos((i * Math.PI) / 5) * (i % 2 ? 5 : 11) });
-    g.fillStyle(0xffd23b).fillPoints(pts, true).lineStyle(2, 0x8a6d1a).strokePoints(pts, true);
-  });
-  for (const k in FACES) mk(k, (g) => {
-    const [skin, hair] = FACES[k];
-    if (k == 'perro') g.fillStyle(hair).fillEllipse(4, 10, 7, 13).fillEllipse(20, 10, 7, 13);
-    if (k == 'gato') g.fillStyle(hair).fillTriangle(3, 2, 10, 7, 4, 12).fillTriangle(21, 2, 14, 7, 20, 12);
-    g.fillStyle(skin).fillCircle(12, 13, 9).lineStyle(2, 0x000000).strokeCircle(12, 13, 9);
-    if (k == 'abuela') g.fillStyle(hair).fillCircle(12, 3, 4).fillRect(4, 5, 16, 4);
-    if (k == 'vecina' || k == 'pato') g.fillStyle(hair).fillRect(3, 3, 18, 6);
-    g.fillStyle(0x000000).fillCircle(9, 12, 1.6).fillCircle(15, 12, 1.6);
-    if (k == 'perro' || k == 'gato') g.fillStyle(0x000000).fillCircle(12, 16, 2);
-  });
+  if (s.textures.exists('halo')) return;
+  for (const k in ITEMS) {
+    const g = s.make.graphics({ add: false }).translateCanvas(16, 16);
+    paint(g, ICON[k]);
+    g.generateTexture('i' + k, 32, 32).destroy();
+  }
+  // halo amarillo de "se puede recoger"
+  const g = s.make.graphics({ add: false });
+  for (let r = 19; r > 8; r -= 2) g.fillStyle(0xffd23b, 0.05).fillCircle(20, 20, r);
+  g.lineStyle(2, 0xffd23b, 0.9).strokeCircle(20, 20, 14).generateTexture('halo', 40, 40).destroy();
 }
 
 // ---------- partida ----------
@@ -321,11 +384,12 @@ function start(s, np) {
   st.items = st.floors.flatMap((F) => F.items);
   icons(s);
   for (const it of st.items) {
-    const c = ITEMS[it.k][2];
-    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + (c == 'p' ? it.k : c));
-    if (c == 'e') s.tweens.add({ targets: it.o, scale: 1.25, duration: 500, yoyo: true, repeat: -1 });
-    s.WL.add(it.o);
+    it.h = s.add.image(it.x, it.y + fy(it.f), 'halo');
+    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + it.k).setAngle(rnd(7) * 15 - 45); // cada objeto tirado en su ángulo
+    if (ITEMS[it.k][2] == 'e') s.tweens.add({ targets: it.o, scale: 1.2, duration: 500, yoyo: true, repeat: -1 });
+    s.WL.add([it.h, it.o]);
   }
+  s.tweens.add({ targets: st.items.map((it) => it.h), alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
   // HUD lateral: el edificio en corte
   s.UL.add(s.add.rectangle(720, 0, 80, H, 0x0d0d12).setOrigin(0));
@@ -344,13 +408,17 @@ function start(s, np) {
   for (let i = 0; i < np; i++) {
     let x, y;
     do { x = 6 + rnd(6); y = 2 + rnd(2); } while (F3.g[y * GW + x] != 0);
-    const bag = s.add.rectangle(0, 9, 14, 6, 0x7a4a2c).setStrokeStyle(2, 0x111111);
-    const eyes = [-4, 4].map((ex) => s.add.circle(ex, -3, 3.5, 0xffffff));
-    const pup = [-4, 4].map((ex) => s.add.circle(ex, -3, 1.6, 0x000000));
-    const o = s.add.container(0, 0, [bag, s.add.circle(0, 0, 11, PC[i]).setStrokeStyle(2, 0x111111), ...eyes, ...pup]);
+    // visto desde arriba, mirando hacia +x: mochila atrás, manos a los lados, hombros, cabeza con pelo atrás
+    const bag = s.add.rectangle(-12, 0, 8, 18, 0x7a4a2c).setStrokeStyle(2, 0x111111);
+    const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).setStrokeStyle(1, 0x111111));
+    const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, 0x111111).strokeEllipse(0, 0, 16, 28)
+      .fillStyle(0xf0c8a8).fillCircle(1, 0, 8).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 8)
+      .fillStyle(i ? 0x111111 : 0x5a3a1a).slice(0, 0, 8, Math.PI / 2, Math.PI * 1.5).fillPath()
+      .fillStyle(0).fillCircle(6, -3, 1.5).fillCircle(6, 3, 1.5);
+    const o = s.add.container(0, 0, [bag, ...hands, body]).setRotation(Math.PI / 2);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {
-      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, eyes, pup,
+      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, hands,
       dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, 0xffffff),
       lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa'),
       bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor('#000000aa'),
@@ -462,20 +530,23 @@ function stepPlayer(s, p, t, dt) {
   const near = nearest(st, p, 30);
   if (pressed(s, p.k + '1') && near) {
     if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, 'sawtooth', 0.15); }
-    else { near.taken = 1; near.o.setVisible(false); p.bag.push(near); tone(s, 880, 0.08, 'triangle', 0.15); }
+    else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); p.bag.push(near); tone(s, 880, 0.08, 'triangle', 0.15); }
   }
   if (pressed(s, p.k + '2') && p.bag.length) {
     const it = p.bag.pop();
     Object.assign(it, { taken: 0, f: p.f, x: p.x, y: p.y });
     it.o.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
+    it.h.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
     tone(s, 330, 0.08, 'triangle', 0.15);
   }
 
   const wy = p.y + fy(p.f), show = nearest(st, p, 40), mv = vx || vy, scared = st.left < 20;
-  p.o.setPosition(p.x, wy + (mv ? Math.sin(t / 70) * 1.5 : 0));
-  p.bg.setSize(14 + used(p) * 3, 6 + used(p)).setPosition(0, 9 + used(p) / 2);
-  p.eyes.forEach((e) => e.setRadius(scared ? 4.5 : 3.5));
-  p.pup.forEach((e, j) => e.setPosition((j ? 4 : -4) + (vx / m) * 1.5, -3 + (vy / m) * 1.5).setRadius(scared ? 1 : 1.6));
+  if (mv) p.o.rotation = Phaser.Math.Angle.RotateTo(p.o.rotation, Math.atan2(vy, vx), 0.25);
+  const sw = mv ? Math.sin(t / 70) * 4 : 0, u = used(p), jit = scared ? Math.random() - 0.5 : 0; // con temblores, tiritan
+  p.o.setPosition(p.x + jit, wy + jit);
+  p.hands[0].x = 3 + sw;
+  p.hands[1].x = 3 - sw;
+  p.bg.setSize(8 + u, 18 + u * 1.5).setPosition(-12 - u / 2, 0);
   p.lt.setVisible(!!show);
   if (show) p.lt.setText(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
   p.dot.y = hy(p.f) + 17;

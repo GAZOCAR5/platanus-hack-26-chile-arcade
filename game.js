@@ -1334,9 +1334,8 @@ function tone(s, f, d, type, v, at = 0) {
 // Música 8-bit. Cada carácter es una nota: semitonos desde La4 ('N' = 0); '.' es silencio.
 // [segundos por paso, melodía, bajo, pasos por nota de bajo]
 const SONGS = [
-  // tema original, alegre y sincopado al estilo de los plataformeros 8-bit, Do mayor, con bajo que salta de octava
-  [0.13, '@.E.IG.E.B.EG...@.E.IL.IJ.IG.E..B.E.JI.G.E.BE...D.G.LJ.GE.......',
-    '9.E.9.E96.B.6.B69.E.9.E92.>.2.>22.>.2.>26.B.6.B64.@.4.@49.E.9.E9', 1],
+  // título y bitácora: Marcha Radetzky (J. Strauss padre, 1848, dominio público), Re mayor, bajo de marcha
+  [0.12, 'G.GGGFGIK.KKKIKLN.NNNLKIG...B...D.DDDBDFG.GGGFGIK.I.G.F.G.......', '/6/6/6/6*1*1/6/64;4;/6/6*1*1/6/6', 2],
   // saqueo: loop original en Re menor que crece por capas (ver music)
   [0.2, 'GJNJILNL', '/./.2.1.', 1],
 ];

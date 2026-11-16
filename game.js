@@ -225,7 +225,7 @@ function genFloor(f, extra) {
       if (family) { put('abuela', free(x, y0, x1, y1)); put('perro', free(x, y0, x1, y1)); }
       if (Math.random() < (f / NF) * 0.5) put(pick(EGGS), free(x, y0, x1, y1));
       if (n == 0) for (const p of extra[f] || []) put(p, free(x, y0, x1, y1));
-      labels.push([dx, dr == 5 ? 4 : 10, fl(f) + 'ABCDEFGH'[n] + ' ' + th[0]]);
+      labels.push([dx, dr == 5 ? 6 : 8, fl(f) + 'ABCDEFGH'[n] + ' ' + th[0]]); // en el pasillo, frente a la puerta: ahí no hay objetos
       x = x1 + 2;
     }
   }

@@ -106,4 +106,4 @@ Abuelita · Gamer · Conserje · Estudiante · Doctora · Tío del asado · Airb
 | **E3 Logbook** | Raciones, estados, días, eventos, endings, resumen "te habría salvado" | Hecho |
 | **E4 Arcade** | Título, puntaje, iniciales, ranking 1P/2P | Hecho |
 | **E5 Arte y audio** | Muebles, personajes, iconos, sonido procedural | Hecho |
-| **E6 Pulido** | Balance, cover, metadata, peso | |
+| **E6 Pulido** | Balance, cover, metadata, peso | Hecho |

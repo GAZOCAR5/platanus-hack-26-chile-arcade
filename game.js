@@ -4,6 +4,9 @@
 // Todo va dentro de una función: así el minificador acorta también los nombres de nivel superior (~2 KB menos).
 (() => {
 const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 14, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
+// Literales repetidos con nombre corto: ~350 bytes menos minificado. El servidor de Platanus minifica con un swc
+// más viejo que comprime peor; con 1.13.5 este archivo debe quedar bien bajo 51200 bytes, no al límite.
+const GOLD = 0xffd23b, GOLDS = '#ffd23b', SQ = 'square', TRI = 'triangle', WHITE = 0xffffff, WHT = '#fff', BLK = '#000', ORS = '#ff9a3b';
 
 // DO NOT replace existing keys — they match the physical arcade cabinet wiring.
 // To add local testing shortcuts, append extra keys to any array.
@@ -83,14 +86,14 @@ const fy = (f) => (NF - 1 - f) * FG;
 const fl = (f) => (f == 0 ? '-3' : f == NF - 1 ? 'PH' : '' + f);
 const hy = (f) => 60 + (NF - 1 - f) * 38;
 const txt = (s, x, y, str, size, color, f) =>
-  s.add.text(x, y, str, { fontFamily: f || 'monospace', fontSize: size + 'px', color: color || '#fff' });
+  s.add.text(x, y, str, { fontFamily: f || 'monospace', fontSize: size + 'px', color: color || WHT });
 // Letra de arcade: tipografía pesada con borde negro y sombra dura desplazada (sin fuentes externas: no se permiten URLs).
 const HF = 'Impact,"Arial Black",sans-serif';
 const big = (s, x, y, str, size, color, sh = '#d62828') =>
-  txt(s, x, y, str, size, color, HF).setStroke('#000', size / 7).setShadow(size / 16, size / 16, sh, 0, true, true);
+  txt(s, x, y, str, size, color, HF).setStroke(BLK, size / 7).setShadow(size / 16, size / 16, sh, 0, true, true);
 // Líneas de barrido de monitor CRT, encima de todo
 const crt = (s) => { const g = s.add.graphics().fillStyle(0, 0.22); for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1); return g; };
-const stars = (g, n, h) => { for (let i = 0; i < n; i++) g.fillStyle(0xffffff, Math.random() * 0.7).fillRect(rnd(W), rnd(h), 2, 2); return g; };
+const stars = (g, n, h) => { for (let i = 0; i < n; i++) g.fillStyle(WHITE, Math.random() * 0.7).fillRect(rnd(W), rnd(h), 2, 2); return g; };
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -113,7 +116,7 @@ function create() {
   for (let x = 0; x < W; ) {
     const w = 40 + rnd(50), h = 60 + rnd(130);
     g.fillStyle(0x1a1433).fillRect(x, 556 - h, w - 4, h);
-    for (let wy = 566 - h; wy < 548; wy += 14) for (let wx = x + 6; wx < x + w - 14; wx += 12) rnd(3) || g.fillStyle(0xffd23b, 0.6).fillRect(wx, wy, 5, 7);
+    for (let wy = 566 - h; wy < 548; wy += 14) for (let wx = x + 6; wx < x + w - 14; wx += 12) rnd(3) || g.fillStyle(GOLD, 0.6).fillRect(wx, wy, 5, 7);
     x += w;
   }
   g.fillStyle(0x050409).fillRect(0, 556, W, 44);
@@ -121,20 +124,20 @@ function create() {
   s.st.mi = 0;
   s.modeB = [0, 1].map((i) => s.add.rectangle(W / 2 + (i ? 130 : -130), 262, 230, 66));
   s.modeT = [0, 1].map((i) =>
-    big(s, W / 2 + (i ? 130 : -130), 262, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START 2' : 'START 1'), 22, '#fff', '#000').setOrigin(0.5).setAlign('center'));
-  const go = big(s, W / 2, 322, '◄ ►  ELEGIR        B1  ¡A CORRER!', 20, '#fff', '#000').setOrigin(0.5);
+    big(s, W / 2 + (i ? 130 : -130), 262, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START 2' : 'START 1'), 22, WHT, BLK).setOrigin(0.5).setAlign('center'));
+  const go = big(s, W / 2, 322, '◄ ►  ELEGIR        B1  ¡A CORRER!', 20, WHT, BLK).setOrigin(0.5);
   s.rankT = [0, 1].map((i) => txt(s, 130 + i * 340, 364, '', 16, '#e8e6ff').setLineSpacing(6));
   s.title = s.add.container(0, 0, [
     g,
-    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, '#2ec4a0', '#000').setOrigin(0.5),
-    big(s, W / 2, 112, '¡AGARRA LA TELE!', 84, '#ffd23b').setOrigin(0.5),
+    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, '#2ec4a0', BLK).setOrigin(0.5),
+    big(s, W / 2, 112, '¡AGARRA LA TELE!', 84, GOLDS).setOrigin(0.5),
     txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con lo que puedas.', 16, '#d8d4ff')
-      .setOrigin(0.5).setAlign('center').setStroke('#000', 4),
+      .setOrigin(0.5).setAlign('center').setStroke(BLK, 4),
     ...s.modeB,
     ...s.modeT,
     go,
-    ...[0, 1].map((i) => s.add.rectangle(250 + i * 340, 412, 290, 124, 0, 0.7).setStrokeStyle(2, 0xffd23b)),
-    ...[0, 1].map((i) => big(s, 250 + i * 340, 350, 'RANKING ' + (i + 1) + 'P', 20, '#ffd23b').setOrigin(0.5)),
+    ...[0, 1].map((i) => s.add.rectangle(250 + i * 340, 412, 290, 124, 0, 0.7).setStrokeStyle(2, GOLD)),
+    ...[0, 1].map((i) => big(s, 250 + i * 340, 350, 'RANKING ' + (i + 1) + 'P', 20, GOLDS).setOrigin(0.5)),
     ...s.rankT,
     txt(s, W / 2, 578, 'Joystick: moverse   B1: tomar   B2: soltar', 14, '#aaa').setOrigin(0.5),
     crt(s),
@@ -151,8 +154,8 @@ function create() {
 }
 
 function drawMode(s) {
-  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? 0xd62828 : 0x15121f).setStrokeStyle(3, i == s.st.mi ? 0xffd23b : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
-  s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? '#fff' : '#6a6680'));
+  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? 0xd62828 : 0x15121f).setStrokeStyle(3, i == s.st.mi ? GOLD : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
+  s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? WHT : '#6a6680'));
 }
 
 // ---------- ranking (platanusArcadeStorage, con localStorage de respaldo) ----------
@@ -347,14 +350,14 @@ function drawFloor(s, f, F) {
     if (F.d[i] && F.d[i] < 11) gr.fillStyle(0, 0.1).fillRect(x, y + 10, T, 1).fillRect(x, y + 21, T, 1); // tablas de madera
     if (c == 5) gr.fillStyle(0x7fc0ff, 0.6).fillRect(x + 4 + (i % 3) * 6, y + 6 + (i % 4) * 6, 12, 2);
     if (c == 2 || c == 3) {
-      gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(0xffffff);
+      gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(WHITE);
       c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
     }
   }
   // alfombras apenas giradas bajo las filas libres; muebles de plantilla con el respaldo a la pared
   for (const [x, y, w, h, a] of F.rugs) {
     gr.save().translateCanvas(x, y).rotateCanvas(a).fillStyle(RUG[(x + y) % 5], 0.85).fillRect(-w / 2, -h / 2, w, h);
-    gr.lineStyle(2, 0xffffff, 0.3).strokeRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).restore();
+    gr.lineStyle(2, WHITE, 0.3).strokeRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).restore();
   }
   for (const [k, x, y, dir] of F.furn) {
     gr.save().translateCanvas(x, y).rotateCanvas(dir < 0 ? Math.PI : 0);
@@ -363,7 +366,7 @@ function drawFloor(s, f, F) {
     gr.restore();
   }
   if (!f) {
-    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? 0xffd23b : 0x111111).fillRect(2 * T, y, 8, 8); // franja de peligro
+    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? GOLD : 0x111111).fillRect(2 * T, y, 8, 8); // franja de peligro
     for (const x of [6, 11, 15]) gr.fillStyle(0xff3030).fillCircle(x * T, T - 5, 4).fillStyle(0xff3030, 0.2).fillCircle(x * T, T - 5, 12); // luces rojas
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
@@ -429,9 +432,9 @@ function icons(s) {
   }
   // halo amarillo de "se puede recoger"
   const g = s.make.graphics({ add: false });
-  for (let r = 19; r > 8; r -= 2) g.fillStyle(0xffd23b, 0.05).fillCircle(20, 20, r);
-  g.lineStyle(2, 0xffd23b, 0.9).strokeCircle(20, 20, 14).generateTexture('halo', 40, 40).clear();
-  g.fillStyle(0xffffff).fillRect(0, 0, 4, 4).generateTexture('px', 4, 4).destroy();
+  for (let r = 19; r > 8; r -= 2) g.fillStyle(GOLD, 0.05).fillCircle(20, 20, r);
+  g.lineStyle(2, GOLD, 0.9).strokeCircle(20, 20, 14).generateTexture('halo', 40, 40).clear();
+  g.fillStyle(WHITE).fillRect(0, 0, 4, 4).generateTexture('px', 4, 4).destroy();
   // se cortó la luz: oscuridad con un círculo de luz al centro, que sigue a cada jugador
   const c = s.textures.createCanvas('dark', 1600, 1300), x = c.context, gr = x.createRadialGradient(800, 650, 70, 800, 650, 300);
   gr.addColorStop(0, 'rgba(20,0,40,0)');
@@ -468,14 +471,14 @@ function start(s, np) {
 
   // HUD lateral: el edificio en corte
   s.UL.add(s.add.rectangle(720, 0, 80, H, 0x0d0d12).setOrigin(0));
-  st.timer = txt(s, 760, 8, '60', 30, '#ffd23b').setOrigin(0.5, 0);
+  st.timer = txt(s, 760, 8, '60', 30, GOLDS).setOrigin(0.5, 0);
   s.UL.add(st.timer);
   for (let f = 0; f < NF; f++) {
     s.UL.add(s.add.rectangle(724, hy(f), 72, 34, f == 0 ? 0x6b1d1d : f == NF - 1 ? 0x8a6d1a : 0x2a2a36).setOrigin(0));
     s.UL.add(txt(s, 727, hy(f) + 2, fl(f), 10, '#ffffff88'));
   }
   st.bunker = [];
-  st.msg = txt(s, 360, 92, '', 16, '#ffd23b').setOrigin(0.5).setBackgroundColor('#000000aa');
+  st.msg = txt(s, 360, 92, '', 16, GOLDS).setOrigin(0.5).setBackgroundColor('#000000aa');
   s.UL.add(st.msg);
 
   const F3 = st.floors[FAMILY_FLOOR];
@@ -489,13 +492,13 @@ function start(s, np) {
     const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, 0x111111).strokeEllipse(0, 0, 16, 28)
       // casco de obra visto desde arriba (P1 amarillo, P2 blanco): la visera apunta hacia donde mira
       .fillStyle(0xf0c8a8).fillCircle(1, 0, 7).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 7)
-      .fillStyle(i ? 0xf2f2f2 : 0xffd23b).fillEllipse(4, 0, 18, 20).strokeEllipse(4, 0, 18, 20).fillCircle(-1, 0, 8.5).strokeCircle(-1, 0, 8.5)
-      .fillStyle(0, 0.25).fillRect(-9, -1, 17, 2).fillStyle(0xffffff, 0.5).fillEllipse(-3, -4, 6, 4);
+      .fillStyle(i ? 0xf2f2f2 : GOLD).fillEllipse(4, 0, 18, 20).strokeEllipse(4, 0, 18, 20).fillCircle(-1, 0, 8.5).strokeCircle(-1, 0, 8.5)
+      .fillStyle(0, 0.25).fillRect(-9, -1, 17, 2).fillStyle(WHITE, 0.5).fillEllipse(-3, -4, 6, 4);
     const o = s.add.container(0, 0, [s.add.ellipse(0, 0, 36, 34, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {
       k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, hands,
-      dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, 0xffffff),
+      dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, WHITE),
       lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa').setDepth(5),
       dk: s.add.image(0, 0, 'dark').setDepth(3),
       bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor('#000000aa'),
@@ -508,12 +511,12 @@ function start(s, np) {
     p.cam = cam;
     st.P.push(p);
   }
-  if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, 0xffffff).setOrigin(0));
+  if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, WHITE).setOrigin(0));
   for (const p of st.P) for (const q of st.P) if (p != q) p.cam.ignore(q.dk); // cada cámara solo ve su propia oscuridad
   // polvo que cae en los temblores (bajo la oscuridad) y chispas al tomar algo (sobre ella)
   st.dust = s.add.particles(0, 0, 'px', { emitZone: { source: new Phaser.Geom.Rectangle(-320, -280, 640, 560) }, speedY: { min: 30, max: 90 },
     lifespan: 1400, scale: { start: 1, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: 0xbbaa99, emitting: false }).setDepth(2.5);
-  st.spark = s.add.particles(0, 0, 'px', { speed: { min: 40, max: 130 }, lifespan: 450, scale: { start: 1.2, end: 0 }, tint: 0xffd23b, emitting: false }).setDepth(4);
+  st.spark = s.add.particles(0, 0, 'px', { speed: { min: 40, max: 130 }, lifespan: 450, scale: { start: 1.2, end: 0 }, tint: GOLD, emitting: false }).setDepth(4);
   s.WL.add([st.dust, st.spark]);
   st.hud = s.cameras.add(0, 0, W, H).ignore(s.WL);
   s.UL.add(crt(s)); // líneas de monitor también en el saqueo
@@ -528,7 +531,7 @@ function start(s, np) {
   st.alert = s.add.container(0, 0, [
     ph,
     txt(s, 400, 120, '03:34', 44).setOrigin(0.5),
-    txt(s, 292, 194, '!! ALERTA DE EMERGENCIA', 15, '#ffd23b'),
+    txt(s, 292, 194, '!! ALERTA DE EMERGENCIA', 15, GOLDS),
     txt(s, 292, 228, 'Megaterremoto inminente en Santiago. Baja al bunker -3 con todo lo que puedas.\n\nTienes 60 segundos.', 15)
       .setWordWrapWidth(216),
     txt(s, 400, 500, 'B1 o START para correr', 13, '#aaa').setOrigin(0.5),
@@ -553,8 +556,8 @@ function notify(s, from, m) {
   const red = from == 'ALERTA';
   const c = s.add.container(360, -40, [
     s.add.rectangle(0, 0, 440, 52, red ? 0xd62828 : 0xf2f2f7).setStrokeStyle(2, 0x000000),
-    txt(s, -208, -21, from, 13, red ? '#ffd23b' : '#d62828'),
-    txt(s, -208, -3, m, 15, red ? '#fff' : '#111'),
+    txt(s, -208, -21, from, 13, red ? GOLDS : '#d62828'),
+    txt(s, -208, -3, m, 15, red ? WHT : '#111'),
   ]);
   s.UL.add(c);
   s.tweens.add({ targets: c, y: 34, duration: 250, hold: 2200, yoyo: true, onComplete: () => c.destroy() });
@@ -601,26 +604,26 @@ function stepPlayer(s, p, t, dt) {
     p.x = 2 * T + T / 2;
     p.y = (c == 2 ? 6 : 8) * T + T / 2; // llegas junto a la misma escalera: mantener ← sigue bajando/subiendo
     p.lock = t + (st.left < 20 ? 800 : 450); // con temblores, la escalera cuesta más
-    [600, 480].forEach((fq, j) => tone(s, fq, 0.05, 'square', 0.06, j * 0.12));
+    [600, 480].forEach((fq, j) => tone(s, fq, 0.05, SQ, 0.06, j * 0.12));
   }
   if (p.f == 0 && p.bag.length) {
     say(st, 'Objetos al bunker: ' + p.bag.length); // la lista completa no cabía en pantalla
     st.bunker.push(...p.bag);
-    [523, 659, 784].forEach((fq, j) => tone(s, fq, 0.12, 'triangle', 0.15, j * 0.08));
+    [523, 659, 784].forEach((fq, j) => tone(s, fq, 0.12, TRI, 0.15, j * 0.08));
     p.bag = [];
   }
 
   const near = nearest(st, p, 30);
   if (pressed(s, p.k + '1') && near) {
     if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, 'sawtooth', 0.15); }
-    else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); st.spark.explode(14, near.o.x, near.o.y); p.bag.push(near); tone(s, 880, 0.08, 'triangle', 0.15); }
+    else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); st.spark.explode(14, near.o.x, near.o.y); p.bag.push(near); tone(s, 880, 0.08, TRI, 0.15); }
   }
   if (pressed(s, p.k + '2') && p.bag.length) {
     const it = p.bag.pop();
     Object.assign(it, { taken: 0, f: p.f, x: p.x, y: p.y });
     it.o.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
     it.h.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
-    tone(s, 330, 0.08, 'triangle', 0.15);
+    tone(s, 330, 0.08, TRI, 0.15);
   }
 
   const wy = p.y + fy(p.f), show = nearest(st, p, 40), mv = vx || vy, scared = st.left < 20;
@@ -644,8 +647,8 @@ function endLoot(s) {
   for (const p of st.P) if (p.f != 0) p.alive = 0;
   st.ph = 'cine';
   st.ct = 0;
-  st.mag = big(s, W / 2, H / 2, '6.0', 130, '#fff').setOrigin(0.5);
-  st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, '#ff9a3b', '#000').setOrigin(0.5);
+  st.mag = big(s, W / 2, H / 2, '6.0', 130, WHT).setOrigin(0.5);
+  st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, ORS, BLK).setOrigin(0.5);
   // más grande que la pantalla: el shake no deja ver los bordes
   st.cine = s.add.container(0, 0, [s.add.rectangle(-100, -100, W + 200, H + 200, 0x000000).setOrigin(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
   s.UL.add(st.cine);
@@ -656,7 +659,7 @@ function cine(s, dt) {
   const st = s.st, ct = (st.ct += dt);
   if (ct < 4500) {
     const v = 6 + 4 * (ct / 4500) ** 2;
-    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).setColor(v > 8 ? '#ff4a4a' : v > 7 ? '#ffd23b' : '#fff');
+    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).setColor(v > 8 ? '#ff4a4a' : v > 7 ? GOLDS : WHT);
     st.hud.shake(100, 0.001 * (v - 5) ** 2);
   } else if (ct < 6000) {
     st.mag.setText(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').setColor('#ff4a4a');
@@ -673,7 +676,7 @@ function cine(s, dt) {
     tone(s, 55, 1.2, 'sawtooth', 0.5);
   }
   if (ct > 8800 && !st.apo) {
-    st.apo = big(s, W / 2, 515, 'COMIENZA EL APOCALIPSIS', 46, '#ff6b4a', '#000').setOrigin(0.5).setAlpha(0);
+    st.apo = big(s, W / 2, 515, 'COMIENZA EL APOCALIPSIS', 46, '#ff6b4a', BLK).setOrigin(0.5).setAlpha(0);
     st.cine.add(st.apo);
     s.tweens.add({ targets: st.apo, alpha: 1, scale: { from: 2.5, to: 1 }, duration: 500, ease: 'Back.easeOut', onComplete: () => st.hud.shake(250, 0.015) });
   }
@@ -685,7 +688,7 @@ function earth(s) {
   const r = 110, zig = [], X = W / 2, Y = 250, add = (o, tw) => (s.st.cine.add(o), s.tweens.add({ targets: o, ...tw }));
   for (let i = 0; i <= 8; i++) zig.push({ x: i % 8 ? (i % 2 ? 14 : -14) : 0, y: -r + (i * r) / 4 });
   // núcleo de lava que late entre las dos mitades
-  const core = s.add.circle(X, Y, 72, 0xff6b1a).setStrokeStyle(10, 0xffd23b);
+  const core = s.add.circle(X, Y, 72, 0xff6b1a).setStrokeStyle(10, GOLD);
   core.postFX?.addGlow(0xff4a1a, 8, 0, false, 0.1, 20); // halo suave (solo WebGL)
   add(core, { scale: 0.88, duration: 300, yoyo: true, repeat: 9 });
   const half = (sd, lands) => {
@@ -705,12 +708,12 @@ function earth(s) {
   // escombros disparados en todas direcciones
   for (let i = 0; i < 50; i++) {
     const a = Math.random() * 7, d = 150 + rnd(400);
-    add(s.add.rectangle(X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, 0xffd23b])),
+    add(s.add.rectangle(X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, GOLD])),
       { x: X + Math.cos(a) * d, y: Y + Math.sin(a) * d, angle: rnd(900), alpha: 0, duration: 1500 + rnd(2000), ease: 'Cubic.easeOut' });
   }
   // dos ondas de choque y un destello blanco
-  for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).setStrokeStyle(8 - i * 4, i ? 0xffffff : 0xffd23b), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
-  add(s.add.rectangle(0, 0, W, H, 0xffffff).setOrigin(0), { alpha: 0, duration: 700 });
+  for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).setStrokeStyle(8 - i * 4, i ? WHITE : GOLD), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
+  add(s.add.rectangle(0, 0, W, H, WHITE).setOrigin(0), { alpha: 0, duration: 700 });
 }
 
 // ---------- E3: bitácora de días ----------
@@ -873,8 +876,8 @@ const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bon
 
 const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
 // Una sola escala en todo el panel: verde bien, amarillo atención, rojo crítico, gris ya no está
-const SEV = [0x2ec4a0, 0xffd23b, 0xff4a4a, 0x666666], hx = (n) => '#' + n.toString(16).padStart(6, '0');
-const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', 0xffd23b], x: ['FIN', 0x9b7bff] };
+const SEV = [0x2ec4a0, GOLD, 0xff4a4a, 0x666666], hx = (n) => '#' + n.toString(16).padStart(6, '0');
+const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', GOLD], x: ['FIN', 0x9b7bff] };
 const names = (req) => req.split('+').map((k) => ITEMS[k][0]).join(' + ');
 
 function startLog(s) {
@@ -903,41 +906,41 @@ function startLog(s) {
   st.eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
 
   // fondo y barra de título estilo marquesina
-  s.UL.add([s.add.graphics().fillStyle(0x0c0a16).fillRect(0, 0, W, H).fillStyle(0x1c1638).fillRect(0, 0, W, 48).fillStyle(0xffd23b).fillRect(0, 48, W, 3),
-    big(s, 20, 6, 'BITÁCORA DEL BUNKER', 28, '#ffd23b')]);
+  s.UL.add([s.add.graphics().fillStyle(0x0c0a16).fillRect(0, 0, W, H).fillStyle(0x1c1638).fillRect(0, 0, W, 48).fillStyle(GOLD).fillRect(0, 48, W, 3),
+    big(s, 20, 6, 'BITÁCORA DEL BUNKER', 28, GOLDS)]);
   st.logC = s.add.container();
   // panel derecho
   st.statC = s.add.container(0, 0, [
     s.add.rectangle(516, 56, 268, 250, 0x15122a).setOrigin(0).setStrokeStyle(2, 0x3b9cff),
-    big(s, 532, 64, 'AGUA', 14, '#3b9cff', '#000'),
-    big(s, 652, 64, 'COMIDA', 14, '#ff9a3b', '#000'),
+    big(s, 532, 64, 'AGUA', 14, '#3b9cff', BLK),
+    big(s, 652, 64, 'COMIDA', 14, ORS, BLK),
     txt(s, 532, 136, 'PERSONA', 11, '#8a86a8'),
     txt(s, 776, 136, 'RECIBE', 11, '#8a86a8').setOrigin(1, 0),
   ]);
-  st.dayT = big(s, 780, 4, '', 32, '#fff').setOrigin(1, 0);
-  st.aT = big(s, 532, 80, '', 30, '#3b9cff', '#000');
-  st.cT = big(s, 652, 80, '', 30, '#ff9a3b', '#000');
+  st.dayT = big(s, 780, 4, '', 32, WHT).setOrigin(1, 0);
+  st.aT = big(s, 532, 80, '', 30, '#3b9cff', BLK);
+  st.cT = big(s, 652, 80, '', 30, ORS, BLK);
   st.spT = [532, 652].map((x) => txt(s, x, 112, '', 12)); // cuántos días alcanza con la regla de raciones actual
   st.rbar = [532, 652].map((x) => s.add.rectangle(x, 129, 0, 4).setOrigin(0));
   st.toolT = txt(s, 532, 0, '', 13, '#999').setWordWrapWidth(236);
   st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, ...st.rbar, st.toolT]);
   // tarjeta de evento
   st.card = s.add.container(W / 2, 452).setVisible(false);
-  st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x16131f).setStrokeStyle(3, 0xffd23b);
-  st.tag = s.add.rectangle(-324, -128, 110, 26, 0xffd23b).setOrigin(0);
-  st.tagT = txt(s, -269, -115, '', 17, '#000', HF).setOrigin(0.5);
+  st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x16131f).setStrokeStyle(3, GOLD);
+  st.tag = s.add.rectangle(-324, -128, 110, 26, GOLD).setOrigin(0);
+  st.tagT = txt(s, -269, -115, '', 17, BLK, HF).setOrigin(0.5);
   st.cardT = txt(s, -324, -90, '', 19).setWordWrapWidth(648);
-  st.sel = s.add.rectangle(-330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, 0xffd23b);
+  st.sel = s.add.rectangle(-330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, GOLD);
   st.optT = [0, 1, 2].map(() => txt(s, -310, 0, '', 18).setOrigin(0, 0.5).setWordWrapWidth(620));
   st.hint = txt(s, -324, 104, '', 14, '#999');
   st.rT = [0, 1, 2, 3, 4, 5, 6].map((i) => txt(s, -310, -54 + i * 22, '', 16).setOrigin(0, 0.5));
-  st.bar = s.add.rectangle(-330, 128, 660, 6, 0xffd23b).setOrigin(0, 0.5);
+  st.bar = s.add.rectangle(-330, 128, 660, 6, GOLD).setOrigin(0, 0.5);
   st.card.add([s.add.rectangle(8, 8, 680, 280, 0, 0.6), st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
   s.UL.add([st.logC, st.statC, st.card, crt(s)]);
 
   const n = alive(st).length;
-  log(st, !n ? 'Nadie llegó al bunker.' : n == 1 ? 'Se cierra la escotilla. Estás solo en el bunker.' : 'Se cierra la escotilla. Son ' + n + ' en el bunker.', '#ffd23b');
-  log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', '#ffd23b');
+  log(st, !n ? 'Nadie llegó al bunker.' : n == 1 ? 'Se cierra la escotilla. Estás solo en el bunker.' : 'Se cierra la escotilla. Son ' + n + ' en el bunker.', GOLDS);
+  log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', GOLDS);
   st.lt = DAY_MS;
   if (!n) gameOver(s, 'El apocalipsis empezó sin ' + (st.P.length > 1 ? 'ustedes.' : 'ti.'));
   else openRation(s, 'Primera noche. ¿Cómo se reparte?'); // antes de consumir nada
@@ -978,7 +981,7 @@ function stat(st) {
       12, hx(SEV[sev(p)])),
   ]);
   // a la derecha de cada persona, qué le da la regla de raciones
-  st.pplT.push(...ppl.map((p) => txt(s, 776, 152 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 13, mode(p) ? '#ff9a3b' : '#9cc9ff').setOrigin(1, 0)));
+  st.pplT.push(...ppl.map((p) => txt(s, 776, 152 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 13, mode(p) ? ORS : '#9cc9ff').setOrigin(1, 0)));
   st.statC.add(st.pplT);
   const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
   st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(164 + st.ppl.length * 20);
@@ -1043,7 +1046,7 @@ function nextDay(s) {
     if (p.f && st.c > 0) { st.c--; p.hu = 0; } else { p.hu++; short |= p.f * 2; }
   }
   const mile = MILE[st.day];
-  log(st, 'Día ' + st.day + ' · ' + (short ? ['', 'Falta agua.', 'Falta comida.', 'Falta agua y comida.'][short] : mile || flavor(st)), short ? '#ff9a3b' : mile ? '#fff' : '#cfcfe0');
+  log(st, 'Día ' + st.day + ' · ' + (short ? ['', 'Falta agua.', 'Falta comida.', 'Falta agua y comida.'][short] : mile || flavor(st)), short ? ORS : mile ? WHT : '#cfcfe0');
   const sed = [], ham = [];
   for (const p of alive(st)) {
     if (p.th >= LIM.w || p.hu >= LIM.f) {
@@ -1051,7 +1054,7 @@ function nextDay(s) {
       log(st, (p.n == 'Tú' ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), '#ff4a4a');
     } else (p.th >= LIM.w - 2 ? sed : p.hu >= LIM.f - 3 ? ham : []).push(p.n);
   }
-  if (sed.length + ham.length) log(st, [sed.length && 'Sed: ' + sed.join(', '), ham.length && 'Hambre: ' + ham.join(', ')].filter(Boolean).join(' · '), '#ff9a3b');
+  if (sed.length + ham.length) log(st, [sed.length && 'Sed: ' + sed.join(', '), ham.length && 'Hambre: ' + ham.join(', ')].filter(Boolean).join(' · '), ORS);
   for (const p of alive(st)) {
     if (p.st == 0 || Math.random() > (p.st == 2 ? 0.12 : 0.06)) continue;
     if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.', '#2ec4a0'); if (Math.random() < 0.3) st.inv.botiquin--; }
@@ -1095,7 +1098,7 @@ function openRation(s, why) {
   st.optT.forEach((t) => t.setText(''));
   st.card.setVisible(true);
   layoutLog(st);
-  tone(s, 660, 0.12, 'triangle', 0.15);
+  tone(s, 660, 0.12, TRI, 0.15);
   drawRation(st);
 }
 
@@ -1104,7 +1107,7 @@ function drawRation(st) {
   const ppl = alive(st).slice(0, 6), ev = st.ev;
   st.rT.forEach((t, i) =>
     t.setText(i > ppl.length ? '' : (i == ev.cur ? '> ' : '  ') + (i < ppl.length ? ppl[i].n.padEnd(23) + RMODE[mode(ppl[i])] : 'LISTO'))
-      .setColor(i == ev.cur ? '#ffd23b' : i < ppl.length && mode(ppl[i]) ? '#ff9a3b' : '#fff'));
+      .setColor(i == ev.cur ? GOLDS : i < ppl.length && mode(ppl[i]) ? ORS : WHT));
   st.sel.setSize(660, 22).setY(st.rT[ev.cur].y).setVisible(true);
   st.hint.setText('←→ cambiar   B1 listo').setColor('#9cc9ff');
 }
@@ -1126,7 +1129,7 @@ function openCard(s, text, opts, kind) {
   st.cardT.setText(text);
   st.card.setVisible(true);
   layoutLog(st);
-  tone(s, 660, 0.12, 'triangle', 0.15);
+  tone(s, 660, 0.12, TRI, 0.15);
   drawCard(st);
 }
 
@@ -1148,11 +1151,11 @@ function drawCard(st) {
     if (!o) return t.setText('');
     const ok = has(st, o[1]);
     t.setY(y0 + i * 40).setText((i == ev.cur ? '> ' : '  ') + o[0] + (ok ? '' : '   (no tienes)'))
-      .setColor(!ok ? '#666' : i == ev.cur ? '#ffd23b' : '#fff');
+      .setColor(!ok ? '#666' : i == ev.cur ? GOLDS : WHT);
   });
   st.sel.setVisible(true).setY(y0 + ev.cur * 40);
   const o = ev.opts[ev.cur];
-  st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? '#999' : '#ff9a3b');
+  st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? '#999' : ORS);
 }
 
 // Qué cambió después de aplicar un efecto, para mostrarlo en la tarjeta.
@@ -1174,12 +1177,12 @@ function choose(s) {
   st.optT.forEach((t) => t.setText(''));
   st.sel.setVisible(false);
   st.optT[0].setText(m).setColor(win ? '#2ec4a0' : '#ff6b4a').setFontSize(20);
-  st.optT[1].setText(d).setColor('#ffd23b').setFontSize(16);
+  st.optT[1].setText(d).setColor(GOLDS).setFontSize(16);
   st.hint.setText('B1 continuar').setColor('#999');
   st.bar.width = 0;
   log(st, '» ' + o[0] + ': ' + m, win ? '#2ec4a0' : '#ff6b4a');
   st.ev.out = OUT_MS;
-  win ? [880, 1175].forEach((f, i) => tone(s, f, 0.15, 'triangle', 0.15, i * 0.1)) : tone(s, 110, 0.4, 'sawtooth', 0.2);
+  win ? [880, 1175].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1)) : tone(s, 110, 0.4, 'sawtooth', 0.2);
 }
 
 function stepLog(s, dt) {
@@ -1217,7 +1220,7 @@ function stepLog(s, dt) {
         p.w = m < 2;
         p.f = m % 2 == 0;
       }
-      if (v || h) { tone(s, 520, 0.05, 'square', 0.08); drawRation(st); stat(st); }
+      if (v || h) { tone(s, 520, 0.05, SQ, 0.08); drawRation(st); stat(st); }
       ev.t -= dt;
       st.bar.width = 660 * Math.max(0, ev.t / CHOICE_MS);
       if (ev.t <= 0 || ok()) closeRation(st);
@@ -1226,7 +1229,7 @@ function stepLog(s, dt) {
     const step = any('D') ? 1 : any('U') ? -1 : 0;
     if (step) {
       ev.cur = (ev.cur + step + ev.opts.length) % ev.opts.length;
-      tone(s, 520, 0.05, 'square', 0.08);
+      tone(s, 520, 0.05, SQ, 0.08);
       drawCard(st);
     }
     ev.t -= dt;
@@ -1250,8 +1253,8 @@ function gameOver(s, why) {
   st.card.setVisible(true);
   st.sel.setVisible(false);
   st.cardT.setText(why);
-  st.optT[0].setText('Días ' + st.day + '   ·   Vivos ' + n + '   ·   Easter eggs ' + st.eggs).setColor('#fff').setY(-30);
-  st.optT[1].setText('PUNTAJE  ' + st.score).setColor('#ffd23b').setFontSize(26).setY(14);
+  st.optT[0].setText('Días ' + st.day + '   ·   Vivos ' + n + '   ·   Easter eggs ' + st.eggs).setColor(WHT).setY(-30);
+  st.optT[1].setText('PUNTAJE  ' + st.score).setColor(GOLDS).setFontSize(26).setY(14);
   st.optT[2].setText('');
   st.hint.setText('START para volver').setColor('#999');
   st.bar.width = 0;
@@ -1265,7 +1268,7 @@ function gameOver(s, why) {
 const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function drawName(st) {
   const { l, i } = st.nm;
-  st.hint.setText('INICIALES  ' + l.map((c, j) => (j == i ? '[' + ABC[c] + ']' : ' ' + ABC[c] + ' ')).join('') + '   ↑↓ letra  ←→ mover  B1 ok').setColor('#ffd23b').setFontSize(18);
+  st.hint.setText('INICIALES  ' + l.map((c, j) => (j == i ? '[' + ABC[c] + ']' : ' ' + ABC[c] + ' ')).join('') + '   ↑↓ letra  ←→ mover  B1 ok').setColor(GOLDS).setFontSize(18);
 }
 
 function saveScore(s) {
@@ -1274,7 +1277,7 @@ function saveScore(s) {
   RANK[np] = clean([...RANK[np], row]);
   store().set(RK, RANK).catch(() => {}); // sin storage, el ranking vive hasta recargar
   st.hint.setText('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P   ·   START para volver').setColor('#2ec4a0');
-  [523, 659, 784, 1047].forEach((f, i) => tone(s, f, 0.15, 'triangle', 0.15, i * 0.1));
+  [523, 659, 784, 1047].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1));
 }
 
 function update(t, dt) {
@@ -1285,7 +1288,7 @@ function update(t, dt) {
   if (st.ph == 'title') {
     const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
     const h = any('R') - any('L');
-    if (h) { st.mi = h > 0 ? 1 : 0; drawMode(s); tone(s, 520, 0.05, 'square', 0.08); }
+    if (h) { st.mi = h > 0 ? 1 : 0; drawMode(s); tone(s, 520, 0.05, SQ, 0.08); }
     if (pressed(s, 'START1')) start(s, 1);
     else if (pressed(s, 'START2')) start(s, 2);
     else if (any('1')) start(s, st.mi + 1);
@@ -1302,7 +1305,7 @@ function update(t, dt) {
     st.left -= dt / 1000;
     for (const p of st.P) stepPlayer(s, p, t, dt);
     if (st.ni < NOTIFS.length && st.left <= NOTIFS[st.ni][0]) notify(s, ...NOTIFS[st.ni++].slice(1));
-    if (st.left < 10 && Math.ceil(st.left) != st.tk) { st.tk = Math.ceil(st.left); tone(s, 1200, 0.04, 'square', 0.08); }
+    if (st.left < 10 && Math.ceil(st.left) != st.tk) { st.tk = Math.ceil(st.left); tone(s, 1200, 0.04, SQ, 0.08); }
     if (st.left < 20 && (st.sh -= dt) <= 0) { // temblores de aviso que crecen
       const k = (20 - st.left) / 20;
       st.sh = 1500 - 900 * k + rnd(600);
@@ -1310,7 +1313,7 @@ function update(t, dt) {
       for (const p of st.P) st.dust.explode(20 + 40 * k, p.x, p.y + fy(p.f));
       rumble(s, 0.6, 0.15 + 0.35 * k);
     }
-    st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : '#ffd23b');
+    st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : GOLDS);
     if ((st.msgT -= dt) <= 0) st.msg.setText('');
     const inBunker = st.P.every((p) => p.f == 0);
     if (inBunker && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
@@ -1364,16 +1367,16 @@ function music(s, k, sp, ly = 2) {
     const at = MU.t - c.currentTime, m = mel[MU.i % mel.length], b = bas[(MU.i / ev | 0) % bas.length];
     if (ly > 2) MU.u ??= MU.i;
     const tr = ly > 2 ? Math.min(8, ((MU.i - MU.u) / 8) | 0) : 0;
-    if (ly > 1 && m != '.') tone(s, hz(m, tr), d * sp * 0.9, 'triangle', 0.16, at);
-    if (MU.i % ev == 0 && b != '.') tone(s, hz(b, tr), d * sp * ev * 0.8, 'square', 0.04, at);
-    if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, 'square', 0.02, at); // tic de reloj
-    if (ly > 2 && MU.i % 4 == 0) tone(s, hz('Z', tr), d * sp, 'square', 0.03, at); // alarma
+    if (ly > 1 && m != '.') tone(s, hz(m, tr), d * sp * 0.9, TRI, 0.16, at);
+    if (MU.i % ev == 0 && b != '.') tone(s, hz(b, tr), d * sp * ev * 0.8, SQ, 0.04, at);
+    if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, SQ, 0.02, at); // tic de reloj
+    if (ly > 2 && MU.i % 4 == 0) tone(s, hz('Z', tr), d * sp, SQ, 0.03, at); // alarma
     MU.i++;
     MU.t += d * sp;
   }
 }
 
-const alarm = (s, n = 6) => { for (let i = 0; i < n; i++) tone(s, i % 2 ? 960 : 1280, 0.28, 'square', 0.1, i * 0.3); };
+const alarm = (s, n = 6) => { for (let i = 0; i < n; i++) tone(s, i % 2 ? 960 : 1280, 0.28, SQ, 0.1, i * 0.3); };
 
 function rumble(s, d, v) {
   const c = ac(s);

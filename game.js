@@ -527,12 +527,12 @@ function start(s, np) {
 // [segundos restantes, de, mensaje]
 const NOTIFS = [
   [56, 'Mamá', '¿Dónde estái? Contesta'],
-  [50, 'Familia (47)', 'Tía Gloria: dicen que es peor que el del 60'],
+  [50, 'Familia (47)', 'Tía Gloria: peor que el del 60'],
   [44, 'Conserje', 'NO usen el ascensor'],
   [38, 'App de autos', 'Tu viaje fue cancelado'],
   [32, 'Banco', 'Tu cuota vence mañana igual'],
   [26, 'Vecino del 7B', '¿Alguien ha visto a mi gato?'],
-  [20, 'ALERTA', 'Ondas sísmicas detectadas: 20 segundos'],
+  [20, 'ALERTA', 'Ondas sísmicas: 20 segundos'],
   [14, 'Ex', 'oye... ¿estái bien?'],
   [9, 'Mamá', 'TE QUIERO. BAJA YA.'],
   [4, 'ALERTA', 'Agáchate, cúbrete y afírmate'],
@@ -708,26 +708,23 @@ const FOOD = { lata: 4, porotos: 4, tallarines: 5, marraqueta: 3, charqui: 6, ma
 const FLAVOR = [
   'Afuera llueve ceniza.', 'Se escuchan perros a lo lejos.', 'Huele a humedad.', 'Día tranquilo. Demasiado tranquilo.',
   'Contaron los tarros tres veces.', 'Sueñas con una sopaipilla pasada.', 'El techo cruje, pero aguanta.',
-  'Alguien jura que escuchó un helicóptero. No era.', 'Discusión eterna: ¿completo o churrasco cuando salgamos?',
-  'Alguien pregunta si mañana hay que ir a trabajar. Risas nerviosas.', 'Se juega al "veo veo". En la oscuridad.',
- 
-  'Alguien cuenta las grietas del techo. Van 41.', 'Hoy nadie habló. Mucho.',
+  'Discusión eterna: ¿completo o churrasco?',
+  'Se juega al "veo veo". En la oscuridad.', 'Alguien cuenta las grietas del techo. Van 41.',
 ];
 // frases que solo salen si tienes a alguien o algo
 const CTX = [
   ['abuela', 'La abuela reza un rosario por cada réplica.'], ['abuela', 'La abuela jura que el del 60 fue peor.'],
   ['perro', 'El quiltro duerme a tus pies.'], ['perro', 'El quiltro le ladra a la escotilla toda la noche.'],
-  ['gato', 'El gato ignora el apocalipsis con elegancia.'], ['vecina', 'La vecina copuchenta ya sabe la vida de todos.'],
-  ['pato', 'Don Pato cuenta qué depto no pagaba gastos comunes.'], ['guitarra', 'Alguien toca la guitarra bajito.'],
+  ['gato', 'El gato ignora el apocalipsis con elegancia.'], ['vecina', 'La vecina ya sabe la vida de todos.'],
+  ['pato', 'Don Pato sabe quién no paga gastos comunes.'],
   ['naipe', 'Carioca a la luz de la vela. Nadie baja la escala.'], ['radio', 'La radio da noticias entrecortadas.'],
-  ['linterna', 'La linterna se prende solo para ir al balde.'], ['pisco', 'Alguien mira el pisco con demasiado cariño.'],
-  ['moai', 'El Moai los mira desde la esquina. Juzga.'], ['polera', 'Alguien se pone la polera del 27F. "Otra más."'],
+  ['pisco', 'Alguien mira el pisco con demasiado cariño.'],
+  ['moai', 'El Moai los mira desde la esquina. Juzga.'],
 ];
 const MILE = {
   1: 'Primera noche bajo tierra. Nadie duerme.', 3: 'Ya no hay señal en ningún celular.',
-  5: 'Se murió la batería del último celular. Ahora sí, solos.', 7: 'Una semana. Afuera ya no se escuchan sirenas.',
-  10: 'Alguien raya la pared: diez palitos.', 14: 'Dos semanas. El silencio de afuera asusta más que las réplicas.',
-  21: 'Tres semanas. Ya nadie pregunta cuándo vienen.',
+  5: 'Murió el último celular. Ahora sí, solos.', 7: 'Una semana. Ya no se escuchan sirenas.',
+  10: 'Alguien raya la pared: diez palitos.',
 };
 // Evento: [tipo r=réplica s=saqueo m=varios, texto, efecto previo, opciones, condición (ids o #marca)]
 // Opción: [texto, requiere (ids con +), prob. de éxito, efecto éxito, texto éxito, efecto fracaso, texto fracaso]
@@ -782,9 +779,6 @@ const EVENTS = [
     ['Abrirla con el cortaplumas', 'cortaplumas', 1, 'c+2', 'Click. Porotos.', '', ''],
     ['Usar el abrelatas', 'abrelatas', 1, 'c+2', 'Como la gente.', '', ''],
     ['A combos', '', 0.4, 'c+2', 'Se abrió.', 'h', 'Te cortas la mano.']]],
-  ['m', 'Llueve. Una lluvia gris y espesa.', '', [
-    ['Juntar agua', '', 0.7, 'a+4', 'Agua gris, pero agua.', 'a+2 s', 'Alguien se enferma.'],
-    ['Quedarse adentro', '', 1, '', 'Escuchas la lluvia.', '', '']]],
   ['m', 'Un caballo asustado pasa por la calle.', '', [
     ['Montarlo con el sombrero de huaso', 'huaso', 0.8, 'c+4 a+2', 'Galopas a un fundo con comida.', 'h', 'El caballo no era de rodeo.'],
     ['Dejarlo ir', '', 1, '', 'Libre como el viento.', '', '']]],
@@ -842,30 +836,27 @@ const EVENTS = [
   ['m', 'Aterriza un dron de reparto perdido.', '', [
     ['Abrir el paquete', '', 0.6, '+botiquin', '¡Un botiquín! Gracias, algoritmo.', '', 'Era una funda de celular.'],
     ['Desarmarlo', '', 1, '+pilas', 'Pilas nuevas. Algo es algo.', '', '']]],
-  ['r', 'Réplica de madrugada. ¿8? ¿9? Ya nadie sabe.', '', [
-    ['Sujetar el bidón', '', 0.6, '', 'Salvaste el agua.', 'a-3', 'El bidón se volcó.'],
-    ['Proteger a los demás', '', 0.7, '', 'Nadie salió herido.', 'h', 'Te llevaste el golpe.']]],
   ['m', 'Radio: "Rescates en plazas de Santiago".', '', [
     ['Marcar la plaza en el mapa', 'mapa', 1, 'e e', 'Plaza Ñuñoa. Está cerca.', '', ''],
     ['Memorizarla', '', 1, 'e', 'Repites "Plaza Ñuñoa" toda la noche.', '', '']], '#radio'],
 ];
 const ENDINGS = [
-  ['Se escucha un helicóptero sobrevolando.', [
-    ['Encumbrar el volantín', 'volantin', 0.85, 'r', 'El piloto ve el volantín. ¡Los rescatan!', '', 'El hilo se cortó.'],
-    ['Gritar y hacer señas', '', 0.35, 'r', '¡Los vieron! Bajan una escalera.', 'h', 'No los vieron. Alguien se cae.'],
-    ['Esconderse', '', 1, '', 'El helicóptero se aleja.', '', '']]],
-  ['Pasa una caravana de sobrevivientes rumbo al sur.', [
-    ['Unirse con el mapa', 'mapa', 0.8, 'r', 'Llegan a un pueblo a salvo.', 'h', 'Se perdieron y volvieron.'],
-    ['Unirse a ciegas', '', 0.4, 'r', 'Contra todo pronóstico, llegan.', 'k', 'El viaje cobra una vida.'],
-    ['Quedarse', '', 1, '', 'La caravana se pierde en el polvo.', '', '']]],
-  ['La radio capta: refugio militar en el cerro San Cristóbal.', [
-    ['Seguir la señal', 'radio+pilas', 0.8, 'r', 'La Virgen del cerro los recibe. ¡A salvo!', 'h', 'La señal se cortó a medio camino.'],
+  ['Se escucha un helicóptero.', [
+    ['Encumbrar el volantín', 'volantin', 0.85, 'r', 'Ven el volantín. ¡Rescate!', '', 'El hilo se cortó.'],
+    ['Gritar y hacer señas', '', 0.35, 'r', '¡Los vieron!', 'h', 'No los vieron.'],
+    ['Esconderse', '', 1, '', 'Se aleja.', '', '']]],
+  ['Pasa una caravana rumbo al sur.', [
+    ['Unirse con el mapa', 'mapa', 0.8, 'r', 'Llegan a un pueblo a salvo.', 'h', 'Se perdieron.'],
+    ['Unirse a ciegas', '', 0.4, 'r', 'Llegan de milagro.', 'k', 'El viaje cobra una vida.'],
+    ['Quedarse', '', 1, '', 'Se pierde en el polvo.', '', '']]],
+  ['Radio: refugio en el cerro San Cristóbal.', [
+    ['Seguir la señal', 'radio+pilas', 0.8, 'r', 'La Virgen del cerro los recibe.', 'h', 'Se cortó la señal.'],
     ['Caminar a ciegas', '', 0.3, 'r', 'Llegaron de milagro.', 'h', 'Vuelven heridos.'],
     ['Ignorar', '', 1, '', 'Mejor malo conocido.', '', '']]],
-  ['Golpean la escotilla: ¿rescate o saqueadores?', [
-    ['Abrir con la peluca de Leo Rey', 'peluca', 0.9, 'r', 'Era un convoy. Te suben a la primera camioneta.', '', 'Eran saqueadores fans.'],
-    ['Abrir', '', 0.5, 'r', '¡Rescate! Sales a la luz.', 'c-5 a-5', 'Saqueadores. Se llevan casi todo.'],
-    ['No abrir', '', 1, '', 'Los golpes se detienen.', '', '']]],
+  ['Golpean: ¿rescate o saqueadores?', [
+    ['Abrir con la peluca de Leo Rey', 'peluca', 0.9, 'r', 'Era un convoy. ¡A salvo!', '', 'Eran saqueadores fans.'],
+    ['Abrir', '', 0.5, 'r', '¡Rescate! Sales a la luz.', 'c-5 a-5', 'Saqueadores.'],
+    ['No abrir', '', 1, '', 'Silencio.', '', '']]],
 ];
 
 const alive = (st) => st.ppl.filter((p) => p.st < 3);
@@ -1282,6 +1273,8 @@ function saveScore(s) {
 function update(t, dt) {
   const s = this, st = s.st;
   dt = Math.min(dt, 50);
+  // tema en el título y la bitácora; en el saqueo, la pista tensa se acelera al doble a medida que baja el reloj
+  music(s, st.ph == 'title' || st.ph == 'log' ? 0 : st.ph == 'loot' ? 1 : -1, st.ph == 'loot' ? 0.5 + st.left / 120 : 1);
   if (st.ph == 'title') {
     const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
     const h = any('R') - any('L');
@@ -1302,10 +1295,6 @@ function update(t, dt) {
     st.left -= dt / 1000;
     for (const p of st.P) stepPlayer(s, p, t, dt);
     if (st.ni < NOTIFS.length && st.left <= NOTIFS[st.ni][0]) notify(s, ...NOTIFS[st.ni++].slice(1));
-    if ((st.mb = (st.mb || 0) - dt) <= 0) { // pulso grave que se acelera con el reloj
-      st.mb = 240 + st.left * 6;
-      tone(s, (st.mn = (st.mn || 0) + 1) % 4 ? 55 : 82, 0.2, 'sine', 0.3);
-    }
     if (st.left < 10 && Math.ceil(st.left) != st.tk) { st.tk = Math.ceil(st.left); tone(s, 1200, 0.04, 'square', 0.08); }
     if (st.left < 20 && (st.sh -= dt) <= 0) { // temblores de aviso que crecen
       const k = (20 - st.left) / 20;
@@ -1346,6 +1335,30 @@ function tone(s, f, d, type, v, at = 0) {
   o.stop(t0 + d);
 }
 
+// Música 8-bit original. Cada carácter es una nota: semitonos desde La4 ('N' = 0); '.' es silencio.
+// [segundos por paso, melodía, bajo, pasos por nota de bajo]
+const SONGS = [
+  [0.21, 'NQUSQPQ.NI..JNQPNMN.....UUSQSUVUSQ..SQPNPMN.....', '616129619429;166', 3], // tema: 6/8 con aire de cueca, La menor
+  [0.15, 'S.V.Z.V.U.X.].Z.', '/.;/./2.-.9-.-1.', 1], // saqueo: Re menor, tenso
+];
+let MU = { k: -1 };
+const hz = (c) => 440 * 2 ** ((c.charCodeAt(0) - 78) / 12);
+function music(s, k, sp) {
+  const c = s.sound.context;
+  if (!c || c.state != 'running') return; // el navegador no deja sonar nada antes de la primera tecla
+  if (k != MU.k) MU = { k, i: 0, t: c.currentTime + 0.1 };
+  if (k < 0) return;
+  const [d, mel, bas, ev] = SONGS[k];
+  MU.t = Math.max(MU.t, c.currentTime); // si la pestaña se durmió, no recuperar notas atrasadas
+  while (MU.t < c.currentTime + 0.12) { // agenda un poco adelante: el ritmo no depende de los fps
+    const at = MU.t - c.currentTime, m = mel[MU.i % mel.length], b = bas[(MU.i / ev | 0) % bas.length];
+    if (m != '.') tone(s, hz(m), d * sp * 0.9, 'square', 0.05, at);
+    if (MU.i % ev == 0 && b != '.') tone(s, hz(b), d * sp * ev * 0.9, 'triangle', 0.14, at);
+    MU.i++;
+    MU.t += d * sp;
+  }
+}
+
 const alarm = (s, n = 6) => { for (let i = 0; i < n; i++) tone(s, i % 2 ? 960 : 1280, 0.28, 'square', 0.1, i * 0.3); };
 
 function rumble(s, d, v) {
@@ -1369,7 +1382,8 @@ function rumble(s, d, v) {
 function createControls(scene) {
   scene.ctl = { held: Object.create(null), pressed: Object.create(null) };
   const onKeyDown = (event) => {
-    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
+    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)], c = scene.sound.context;
+    if (c && c.state == 'suspended') c.resume(); // primera tecla: se habilita el audio
     if (!code) return;
     if (!scene.ctl.held[code]) scene.ctl.pressed[code] = true;
     scene.ctl.held[code] = true;

@@ -199,7 +199,7 @@ function genFloor(f, extra) {
     open(4, 1, 48, 13, 12);
     open(2, 6, 4, 8, 12); // desde x=2: la columna 1 es la de las escaleras
     for (let y = 4; y <= 10; y++) for (let x = 22; x <= 32; x++) set(x, y, 5);
-    furnish(5, 1, 47, 13, 14, []);
+    furnish(5, 1, 47, 13, 26, []);
     for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
     for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
     labels.push([6, 2, 'PH · Mansión del cuico']);
@@ -219,7 +219,7 @@ function genFloor(f, extra) {
       let dx;
       do dx = x + 1 + rnd(x1 - x - 1); while (dx == sx);
       set(dx, dr, 0, ti + 1);
-      furnish(x, y0, x1, y1, 3, [sx, dx]);
+      furnish(x, y0, x1, y1, 6, [sx, dx]);
       const k = family ? 3 : ti == 7 ? 1 : 2 + rnd(3);
       for (let i = 0; i < k; i++) put(Math.random() < 0.6 ? pick(th[2]) : pick(COMMON), free(x, y0, x1, y1));
       if (family) { put('abuela', free(x, y0, x1, y1)); put('perro', free(x, y0, x1, y1)); }
@@ -244,14 +244,29 @@ function reachableAll(F, f) {
   return F.items.every((it) => seen[Math.floor(it.y / T) * GW + Math.floor(it.x / T)]) && [6, 8].every((r) => seen[r * GW + 1] || F.g[r * GW + 1] == 1);
 }
 
+// Muebles: capas [color, x, y, w, h] dentro de un tile de 32 px
+const FURN = [
+  [[0x6b4f3a, 2, 3, 28, 26], [0xf2f2f2, 5, 5, 22, 7], [0x8a3b3b, 5, 14, 22, 13]], // cama
+  [[0x4a3f6b, 2, 8, 28, 20], [0x5d5285, 2, 4, 28, 8], [0x3a3157, 2, 8, 5, 20], [0x3a3157, 25, 8, 5, 20]], // sofá
+  [[0x7a5a3c, 3, 6, 26, 20], [0xeeeeee, 7, 10, 7, 7], [0xeeeeee, 18, 13, 7, 7]], // mesa
+  [[0xd8d8e0, 5, 2, 22, 28], [0x9a9aa8, 6, 12, 20, 1], [0x9a9aa8, 22, 5, 2, 5]], // refri
+  [[0x7a4a2c, 10, 18, 12, 11], [0x3b8a3b, 6, 3, 20, 17]], // planta
+  [[0x222222, 3, 9, 26, 16], [0x3b6fd6, 5, 11, 22, 12], [0x222222, 13, 25, 6, 4]], // tele
+];
+
 function drawFloor(s, f, F) {
   const gr = s.make.graphics({ add: false });
   gr.fillStyle(0x15151c).fillRect(0, 0, GW * T, GH * T);
   for (let i = 0; i < GW * GH; i++) {
     const c = F.g[i], x = (i % GW) * T, y = Math.floor(i / GW) * T;
-    if (c == 1) continue;
-    gr.fillStyle(c == 4 ? 0x5a4636 : c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
-    gr.lineStyle(1, 0x000000, 0.15).strokeRect(x, y, T, T);
+    if (c == 1) {
+      if (F.g[i + GW] != 1 && i + GW < GW * GH) gr.fillStyle(0x2e2e3c).fillRect(x, y + T - 9, T, 9); // cara de la pared
+      continue;
+    }
+    gr.fillStyle(c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
+    if ((x + y) / T % 2) gr.fillStyle(0x000000, 0.07).fillRect(x, y, T, T);
+    if (c == 4) for (const [col, a, b, w, h] of FURN[(i * 7 + f * 3) % FURN.length]) gr.fillStyle(col).fillRect(x + a, y + b, w, h);
+    if (c == 5) gr.fillStyle(0x7fc0ff, 0.6).fillRect(x + 4 + (i % 3) * 6, y + 6 + (i % 4) * 6, 12, 2);
     if (c == 2 || c == 3) {
       gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(0xffffff);
       c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
@@ -261,6 +276,31 @@ function drawFloor(s, f, F) {
   gr.destroy();
   s.WL.add(s.add.image(0, fy(f), 'f' + f).setOrigin(0));
   for (const [x, y, l] of F.labels) s.WL.add(txt(s, x * T, fy(f) + y * T + 8, l, 11, '#ffffffaa'));
+}
+
+// Íconos de 24 px: a=agua c=comida h=herramienta e=easter egg, y una cara por persona
+const FACES = { abuela: [0xf0c8a8, 0xcccccc], perro: [0xa0703c, 0x5a3a1c], gato: [0x9a9aa8, 0x6a6a78], vecina: [0xf0c8a8, 0x9b4bd0], pato: [0xf0c8a8, 0x2a5fb0] };
+function icons(s) {
+  if (s.textures.exists('ia')) return;
+  const mk = (k, fn) => { const g = s.make.graphics({ add: false }); fn(g); g.generateTexture('i' + k, 24, 24); g.destroy(); };
+  mk('a', (g) => g.fillStyle(0x3b9cff).fillRoundedRect(6, 6, 12, 17, 4).fillStyle(0xffffff).fillRect(9, 2, 6, 5).fillStyle(0xffffff, 0.5).fillRect(8, 9, 2, 10));
+  mk('c', (g) => g.fillStyle(0xff9a3b).fillRect(5, 6, 14, 15).fillStyle(0xffc27a).fillEllipse(12, 6, 14, 5).fillStyle(0xffffff).fillRect(5, 12, 14, 4));
+  mk('h', (g) => g.lineStyle(3, 0x1a8a70).strokeRect(8, 4, 8, 6).fillStyle(0x2ec4a0).fillRect(2, 9, 20, 13).fillStyle(0x1a8a70).fillRect(10, 13, 4, 4));
+  mk('e', (g) => {
+    const pts = [];
+    for (let i = 0; i < 10; i++) pts.push({ x: 12 + Math.sin((i * Math.PI) / 5) * (i % 2 ? 5 : 11), y: 13 - Math.cos((i * Math.PI) / 5) * (i % 2 ? 5 : 11) });
+    g.fillStyle(0xffd23b).fillPoints(pts, true).lineStyle(2, 0x8a6d1a).strokePoints(pts, true);
+  });
+  for (const k in FACES) mk(k, (g) => {
+    const [skin, hair] = FACES[k];
+    if (k == 'perro') g.fillStyle(hair).fillEllipse(4, 10, 7, 13).fillEllipse(20, 10, 7, 13);
+    if (k == 'gato') g.fillStyle(hair).fillTriangle(3, 2, 10, 7, 4, 12).fillTriangle(21, 2, 14, 7, 20, 12);
+    g.fillStyle(skin).fillCircle(12, 13, 9).lineStyle(2, 0x000000).strokeCircle(12, 13, 9);
+    if (k == 'abuela') g.fillStyle(hair).fillCircle(12, 3, 4).fillRect(4, 5, 16, 4);
+    if (k == 'vecina' || k == 'pato') g.fillStyle(hair).fillRect(3, 3, 18, 6);
+    g.fillStyle(0x000000).fillCircle(9, 12, 1.6).fillCircle(15, 12, 1.6);
+    if (k == 'perro' || k == 'gato') g.fillStyle(0x000000).fillCircle(12, 16, 2);
+  });
 }
 
 // ---------- partida ----------
@@ -279,10 +319,11 @@ function start(s, np) {
     drawFloor(s, f, F);
   }
   st.items = st.floors.flatMap((F) => F.items);
+  icons(s);
   for (const it of st.items) {
-    const [, , c] = ITEMS[it.k];
-    it.o = c == 'p' ? s.add.circle(0, 0, 9, CAT[c]) : s.add.rectangle(0, 0, 16, 16, CAT[c]);
-    it.o.setStrokeStyle(2, 0x000000).setPosition(it.x, it.y + fy(it.f));
+    const c = ITEMS[it.k][2];
+    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + (c == 'p' ? it.k : c));
+    if (c == 'e') s.tweens.add({ targets: it.o, scale: 1.25, duration: 500, yoyo: true, repeat: -1 });
     s.WL.add(it.o);
   }
 
@@ -303,14 +344,13 @@ function start(s, np) {
   for (let i = 0; i < np; i++) {
     let x, y;
     do { x = 6 + rnd(6); y = 2 + rnd(2); } while (F3.g[y * GW + x] != 0);
-    const o = s.add.container(0, 0, [
-      s.add.circle(0, 0, 11, PC[i]).setStrokeStyle(2, 0x111111),
-      s.add.circle(-4, -3, 3, 0xffffff),
-      s.add.circle(4, -3, 3, 0xffffff),
-    ]);
+    const bag = s.add.rectangle(0, 9, 14, 6, 0x7a4a2c).setStrokeStyle(2, 0x111111);
+    const eyes = [-4, 4].map((ex) => s.add.circle(ex, -3, 3.5, 0xffffff));
+    const pup = [-4, 4].map((ex) => s.add.circle(ex, -3, 1.6, 0x000000));
+    const o = s.add.container(0, 0, [bag, s.add.circle(0, 0, 11, PC[i]).setStrokeStyle(2, 0x111111), ...eyes, ...pup]);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {
-      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o,
+      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, eyes, pup,
       dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, 0xffffff),
       lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa'),
       bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor('#000000aa'),
@@ -410,26 +450,32 @@ function stepPlayer(s, p, t, dt) {
     p.x = 2 * T + T / 2;
     p.y = (c == 2 ? 6 : 8) * T + T / 2; // llegas junto a la misma escalera: mantener ← sigue bajando/subiendo
     p.lock = t + (st.left < 20 ? 800 : 450); // con temblores, la escalera cuesta más
+    [600, 480].forEach((fq, j) => tone(s, fq, 0.05, 'square', 0.06, j * 0.12));
   }
   if (p.f == 0 && p.bag.length) {
     say(st, 'Al bunker: ' + p.bag.map((it) => ITEMS[it.k][0]).join(', '));
     st.bunker.push(...p.bag);
+    [523, 659, 784].forEach((fq, j) => tone(s, fq, 0.12, 'triangle', 0.15, j * 0.08));
     p.bag = [];
   }
 
   const near = nearest(st, p, 30);
   if (pressed(s, p.k + '1') && near) {
-    if (used(p) + ITEMS[near.k][1] > SLOTS) say(st, 'Mochila llena: suelta algo (B2) o baja al bunker');
-    else { near.taken = 1; near.o.setVisible(false); p.bag.push(near); }
+    if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, 'sawtooth', 0.15); }
+    else { near.taken = 1; near.o.setVisible(false); p.bag.push(near); tone(s, 880, 0.08, 'triangle', 0.15); }
   }
   if (pressed(s, p.k + '2') && p.bag.length) {
     const it = p.bag.pop();
     Object.assign(it, { taken: 0, f: p.f, x: p.x, y: p.y });
     it.o.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
+    tone(s, 330, 0.08, 'triangle', 0.15);
   }
 
-  const wy = p.y + fy(p.f), show = nearest(st, p, 40);
-  p.o.setPosition(p.x, wy);
+  const wy = p.y + fy(p.f), show = nearest(st, p, 40), mv = vx || vy, scared = st.left < 20;
+  p.o.setPosition(p.x, wy + (mv ? Math.sin(t / 70) * 1.5 : 0));
+  p.bg.setSize(14 + used(p) * 3, 6 + used(p)).setPosition(0, 9 + used(p) / 2);
+  p.eyes.forEach((e) => e.setRadius(scared ? 4.5 : 3.5));
+  p.pup.forEach((e, j) => e.setPosition((j ? 4 : -4) + (vx / m) * 1.5, -3 + (vy / m) * 1.5).setRadius(scared ? 1 : 1.6));
   p.lt.setVisible(!!show);
   if (show) p.lt.setText(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
   p.dot.y = hy(p.f) + 17;
@@ -1087,6 +1133,11 @@ function update(t, dt) {
     st.left -= dt / 1000;
     for (const p of st.P) stepPlayer(s, p, t, dt);
     if (st.ni < NOTIFS.length && st.left <= NOTIFS[st.ni][0]) notify(s, ...NOTIFS[st.ni++].slice(1));
+    if ((st.mb = (st.mb || 0) - dt) <= 0) { // pulso grave que se acelera con el reloj
+      st.mb = 240 + st.left * 6;
+      tone(s, (st.mn = (st.mn || 0) + 1) % 4 ? 55 : 82, 0.2, 'sine', 0.3);
+    }
+    if (st.left < 10 && Math.ceil(st.left) != st.tk) { st.tk = Math.ceil(st.left); tone(s, 1200, 0.04, 'square', 0.08); }
     if (st.left < 20 && (st.sh -= dt) <= 0) { // temblores de aviso que crecen
       const k = (20 - st.left) / 20;
       st.sh = 1500 - 900 * k + rnd(600);

@@ -898,6 +898,9 @@ function nextDay(s) {
   }
   const ppl = alive(st);
   if (!ppl.length) return gameOver(s, 'No sobrevivió nadie.');
+  // Alguien racionado y débil va antes que eventos y finales: si no, dos tarjetas seguidas lo matan sin preguntar.
+  const weak = ppl.find((p) => (!p.w && p.th >= LIM.w - 2) || (!p.f && p.hu >= LIM.f - 3));
+  if (weak && st.day > st.lastR) return openRation(s, weak.n + (weak.n == 'Tú' ? ' estás' : ' está') + ' muy débil. ¿Le das algo?');
   if (st.day >= ENDING_DAY && Math.random() < 0.1 + st.eb) {
     const e = wpick(ENDINGS, (x) => 1 + 3 * usable(st, x[1]));
     return openCard(s, e[0], e[1], 'f');
@@ -912,9 +915,7 @@ function nextDay(s) {
     return openCard(s, ev[1], ev[3], ev[0]);
   }
   const nw = ppl.filter((p) => p.w).length, nf = ppl.filter((p) => p.f).length;
-  const weak = ppl.find((p) => (!p.w && p.th >= LIM.w - 2) || (!p.f && p.hu >= LIM.f - 3));
-  if (weak && st.day > st.lastR) openRation(s, weak.n + (weak.n == 'Tú' ? ' estás' : ' está') + ' muy débil. ¿Le das algo?');
-  else if (ppl.some((p) => !p.w || !p.f) && st.day - st.lastR >= 2) openRation(s, 'Hay gente racionada. ¿Siguen así?');
+  if (ppl.some((p) => !p.w || !p.f) && st.day - st.lastR >= 2) openRation(s, 'Hay gente racionada. ¿Siguen así?');
   else if ((st.a < nw || st.c < nf) && st.day - st.lastR >= 2) openRation(s, 'Mañana no alcanza para todos. ¿A quién le das?');
   else if (st.day - st.lastR >= 4) openRation(s, 'Revisar las raciones. Quedan ' + st.a + ' de agua y ' + st.c + ' de comida.');
 }

@@ -1,15 +1,8 @@
-// ¡Agarra la tele! — Platanus Hack 26 Santiago
-// E1: saqueo top-down en un edificio generado. Ver docs/GAME_SPEC.md.
 
-// Todo va dentro de una función: así el minificador acorta también los nombres de nivel superior (~2 KB menos).
 (() => {
 const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 14, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
-// Literales repetidos con nombre corto: ~350 bytes menos minificado. El servidor de Platanus minifica con un swc
-// más viejo que comprime peor; con 1.13.5 este archivo debe quedar bien bajo 51200 bytes, no al límite.
 const GOLD = 0xffd23b, GOLDS = '#ffd23b', SQ = 'square', TRI = 'triangle', WHITE = 0xffffff, WHT = '#fff', BLK = '#000', ORS = '#ff9a3b';
 
-// DO NOT replace existing keys — they match the physical arcade cabinet wiring.
-// To add local testing shortcuts, append extra keys to any array.
 const CABINET_KEYS = {
   P1_U: ['w'],
   P1_D: ['s'],
@@ -40,7 +33,6 @@ for (const [arcadeCode, keys] of Object.entries(CABINET_KEYS)) {
   for (const key of keys) KEYBOARD_TO_ARCADE[normalizeIncomingKey(key)] = arcadeCode;
 }
 
-// id: [nombre, espacios, categoría]  a=agua c=comida h=herramienta p=persona e=easter egg
 const ITEMS = {
   bidon: ['Bidón de 5 L', 3, 'a'], botella: ['Botella de agua', 1, 'a'], bebida: ['Bebida de 3 L', 2, 'a'],
   lata: ['Lata de atún', 1, 'c'], porotos: ['Porotos en tarro', 1, 'c'], tallarines: ['Tallarines', 1, 'c'],
@@ -62,7 +54,6 @@ const ITEMS = {
 const EGGS = Object.keys(ITEMS).filter((k) => ITEMS[k][2] == 'e');
 const LOOT = Object.keys(ITEMS).filter((k) => 'ach'.includes(ITEMS[k][2]));
 const COMMON = ['botella', 'lata', 'marraqueta', 'linterna', 'pilas'];
-// [nombre, color de piso, loot sesgado, plantilla de la pieza izquierda y derecha]
 const THEMES = [
   ['Tu familia', 0xb06a32, ['bidon', 'lata', 'botiquin', 'frazada', 'abrelatas'], 'cocina dorm'],
   ['Abuelita', 0xb0507a, ['lata', 'porotos', 'manjar', 'botiquin', 'frazada', 'naipe', 'uslero'], 'living dorm'],
@@ -75,8 +66,7 @@ const THEMES = [
   ['Hippie', 0x7ab03a, ['guitarra', 'encendedor', 'porotos', 'botella', 'mapa'], 'living dorm'],
   ['Deportista', 0x2a8ab0, ['botella', 'bidon', 'charqui', 'sopaipillas'], 'cocina dorm'],
 ];
-// color de piso por zona: 0 pasillo, 1..10 temas, 11 bunker, 12 PH
-const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x4a4f58, 0xd0a030]; // bunker de hormigón
+const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x4a4f58, 0xd0a030];
 const PC = [0xff6b4a, 0x9b7bff];
 const FAMILY_FLOOR = 3;
 
@@ -87,11 +77,9 @@ const fl = (f) => (f == 0 ? '-3' : f == NF - 1 ? 'PH' : '' + f);
 const hy = (f) => 60 + (NF - 1 - f) * 38;
 const txt = (s, x, y, str, size, color, f) =>
   s.add.text(x, y, str, { fontFamily: f || 'monospace', fontSize: size + 'px', color: color || WHT });
-// Letra de arcade: tipografía pesada con borde negro y sombra dura desplazada (sin fuentes externas: no se permiten URLs).
 const HF = 'Impact,"Arial Black",sans-serif';
 const big = (s, x, y, str, size, color, sh = '#d62828') =>
   txt(s, x, y, str, size, color, HF).setStroke(BLK, size / 7).setShadow(size / 16, size / 16, sh, 0, true, true);
-// Líneas de barrido de monitor CRT, encima de todo
 const crt = (s) => { const g = s.add.graphics().fillStyle(0, 0.22); for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1); return g; };
 const stars = (g, n, h) => { for (let i = 0; i < n; i++) g.fillStyle(WHITE, Math.random() * 0.7).fillRect(rnd(W), rnd(h), 2, 2); return g; };
 
@@ -111,7 +99,6 @@ function create() {
   s.WL = s.add.layer();
   s.UL = s.add.layer();
   createControls(s);
-  // Santiago de noche: cielo, estrellas y edificios con ventanas encendidas
   const g = stars(s.add.graphics().fillGradientStyle(0x07061a, 0x07061a, 0x3a1030, 0x3a1030).fillRect(0, 0, W, H), 70, 380);
   for (let x = 0; x < W; ) {
     const w = 40 + rnd(50), h = 60 + rnd(130);
@@ -120,7 +107,6 @@ function create() {
     x += w;
   }
   g.fillStyle(0x050409).fillRect(0, 556, W, 44);
-  // selector de modo: ←→ elige, B1 confirma; START1/START2 son atajos directos
   s.st.mi = 0;
   s.modeB = [0, 1].map((i) => s.add.rectangle(W / 2 + (i ? 130 : -130), 262, 230, 66));
   s.modeT = [0, 1].map((i) =>
@@ -143,7 +129,6 @@ function create() {
     crt(s),
   ]);
   s.UL.add(s.title);
-  // microsismo cada tanto: toda la pantalla tiembla
   s.time.addEvent({ delay: 2200, loop: true, callback: () => s.st.ph == 'title' && s.cameras.main.shake(180, 0.006) });
   s.tweens.add({ targets: go, alpha: 0.25, duration: 500, yoyo: true, repeat: -1 });
   drawMode(s);
@@ -158,7 +143,6 @@ function drawMode(s) {
   s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? WHT : '#6a6680'));
 }
 
-// ---------- ranking (platanusArcadeStorage, con localStorage de respaldo) ----------
 
 const RK = 'terremoto-ranking-v1', RMAX = 8;
 let RANK = null;
@@ -170,7 +154,6 @@ const store = () =>
     },
     async set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
   };
-// El storage sobrevive a versiones viejas: validar la forma de cada fila.
 const okRow = (r) => r && typeof r.n == 'string' && r.n.length <= 3 && Number.isFinite(r.s) && Number.isFinite(r.d);
 const clean = (a) => (Array.isArray(a) ? a.filter(okRow).sort((x, y) => y.s - x.s).slice(0, RMAX) : []);
 
@@ -187,26 +170,23 @@ const rankLines = (a) =>
   a.slice(0, 5).map((r, i) => i + 1 + '. ' + r.n.padEnd(3) + '  ' + String(r.s).padStart(6) + '  ' + r.d + 'd').join('\n') || 'Sin puntajes todavía';
 const qualifies = (np, sc) => sc > 0 && RANK && (RANK[np].length < RMAX || sc > RANK[np][RMAX - 1].s);
 
-// ---------- generación del edificio ----------
 
 function genFloor(f, extra) {
   const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [], rugs = [], furn = [];
   const set = (x, y, v, t) => { g[y * GW + x] = v; if (t !== undefined) d[y * GW + x] = t; };
   const open = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 0, t); };
   const put = (k, xy) => xy && items.push({ k, f, x: xy[0] * T + T / 2, y: xy[1] * T + T / 2 });
-  const free = (x0, y0, x1, y1) => { // tile libre al azar dentro del rectángulo
+  const free = (x0, y0, x1, y1) => {
     for (let i = 0; i < 40; i++) {
       const x = x0 + rnd(x1 - x0 + 1), y = y0 + rnd(y1 - y0 + 1);
       if (g[y * GW + x] == 0 && !items.some((it) => it.x == x * T + T / 2 && it.y == y * T + T / 2)) return [x, y];
     }
   };
-  // Mueble de w×h casillas con su respaldo contra la fila `by`; dir = 1 crece hacia abajo, -1 hacia arriba (y se dibuja girado)
   const place = (k, cx, by, dir) => {
     const [w, h] = FURN[k];
     for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) set(cx + i, by + dir * j, 4);
     furn.push([k, (cx + w / 2) * T, (by + (dir * (h - 1)) / 2 + 0.5) * T, dir]);
   };
-  // Llena una pieza de izquierda a derecha contra la pared del fondo; las dos filas del lado del pasillo quedan libres
   const fill = (x0, x1, by, dir, room) => {
     for (const k of ROOMS[room]) if (x0 + FURN[k][0] - 1 <= x1) { place(k, x0, by, dir); x0 += FURN[k][0]; }
   };
@@ -226,8 +206,7 @@ function genFloor(f, extra) {
 
   if (f == NF - 1) {
     open(4, 1, 48, 13, 12);
-    open(2, 6, 4, 8, 12); // desde x=2: la columna 1 es la de las escaleras
-    // tres zonas con muros y puertas al centro: living y comedor | terraza de la piscina | suite
+    open(2, 6, 4, 8, 12);
     open(21, 1, 33, 13, 10);
     open(35, 1, 48, 13, 2);
     for (let y = 1; y <= 13; y++) if (y < 6 || y > 8) set(20, y, 1), set(34, y, 1);
@@ -257,7 +236,7 @@ function genFloor(f, extra) {
       const top = dr == 5, by = top ? y0 : y1, dir = top ? 1 : -1, [ra, rb] = th[3].split(' ');
       rugs.push([((x + sx) / 2) * T, (top ? y0 + 3 : y0 + 1) * T, (sx - x) * T * 0.7, 1.6 * T, (Math.random() - 0.5) * 0.3]);
       for (let y = y0; y <= y1; y++) set(sx, y, 1);
-      set(sx, top ? y0 + 2 + rnd(2) : y0 + rnd(2), 0, ti + 1); // puerta interna siempre en las filas libres
+      set(sx, top ? y0 + 2 + rnd(2) : y0 + rnd(2), 0, ti + 1);
       fill(x, sx - 1, by, dir, ra);
       fill(sx + 1, x1, by, dir, rb);
       let dx;
@@ -268,14 +247,13 @@ function genFloor(f, extra) {
       if (family) { put('abuela', free(x, y0, x1, y1)); put('perro', free(x, y0, x1, y1)); }
       if (Math.random() < (f / NF) * 0.5) put(pick(EGGS), free(x, y0, x1, y1));
       if (n == 0) for (const p of extra[f] || []) put(p, free(x, y0, x1, y1));
-      labels.push([dx, dr == 5 ? 6 : 8, fl(f) + 'ABCDEFGH'[n] + ' ' + th[0]]); // en el pasillo, frente a la puerta: ahí no hay objetos
+      labels.push([dx, dr == 5 ? 6 : 8, fl(f) + 'ABCDEFGH'[n] + ' ' + th[0]]);
       x = x1 + 2;
     }
   }
   return { g, d, items, labels, rugs, furn };
 }
 
-// Autocheck: las escaleras que corresponden existen, y cada objeto y escalera se alcanza.
 function reachableAll(F, f) {
   if ((f < NF - 1 && F.g[6 * GW + 1] != 2) || (f > 0 && F.g[8 * GW + 1] != 3)) return false;
   const start = F.g[8 * GW + 1] == 3 ? 8 * GW + 1 : 6 * GW + 1, seen = new Uint8Array(GW * GH), q = [start];
@@ -287,8 +265,6 @@ function reachableAll(F, f) {
   return F.items.every((it) => seen[Math.floor(it.y / T) * GW + Math.floor(it.x / T)]) && [6, 8].every((r) => seen[r * GW + 1] || F.g[r * GW + 1] == 1);
 }
 
-// Recetas de dibujo top-down: "cmd args col|...", coords desde el centro, color en hex corto (f80 = ff8800).
-// c x y r · e x y w h · r x y w h · o x y w h (redondeado) · t x1 y1 x2 y2 x3 y3 · l x1 y1 x2 y2 (línea) · R ángulo
 function paint(g, rec, ol) {
   for (const cmd of rec.split('|')) {
     const [k, ...a] = cmd.split(' '), n = a.map(Number), col = parseInt(a[a.length - 1].replace(/./g, '$&$&'), 16);
@@ -296,7 +272,7 @@ function paint(g, rec, ol) {
     else if (k == 'l') g.lineStyle(2, col).lineBetween(n[0], n[1], n[2], n[3]);
     else {
       g.fillStyle(col);
-      g.lineStyle(ol, 0, 0.85); // contorno negro: look de arcade
+      g.lineStyle(ol, 0, 0.85);
       if (k == 'c') g.fillCircle(n[0], n[1], n[2]).strokeCircle(n[0], n[1], n[2]);
       if (k == 'e') g.fillEllipse(n[0], n[1], n[2], n[3]).strokeEllipse(n[0], n[1], n[2], n[3]);
       if (k == 'r') g.fillRect(n[0], n[1], n[2], n[3]).strokeRect(n[0], n[1], n[2], n[3]);
@@ -305,7 +281,6 @@ function paint(g, rec, ol) {
     }
   }
 }
-// Muebles: [ancho, alto en casillas, receta centrada en px]. Se dibujan con el respaldo hacia la pared del fondo.
 const FURN = {
   cama: [2, 2, 'o -30 -30 60 60 643|o -26 -27 24 14 eee|o 2 -27 24 14 eee|o -27 -10 54 38 a44|r -27 -10 54 6 c66'],
   velador: [1, 1, 'o -12 -12 24 24 864|c 0 0 6 fe6'],
@@ -323,12 +298,11 @@ const FURN = {
   reposera: [1, 2, 'o -11 -30 22 60 fff|r -11 -24 22 6 e55|r -11 -8 22 6 e55|r -11 8 22 6 e55'],
   piano: [2, 2, 'o -30 -28 60 56 111|r -27 14 54 12 fff|r -20 14 2 7 111|r -10 14 2 7 111|r 0 14 2 7 111|r 10 14 2 7 111|r 20 14 2 7 111'],
   barra: [3, 1, 'o -47 -13 94 26 742|c -24 0 5 fd3|c 0 0 5 fd3|c 24 0 5 fd3'],
-  estante: [2, 1, 'o -30 -14 60 26 778|c -16 -2 6 f93|o 2 -9 8 14 39f|o 14 -9 8 14 39f'], // provisiones
-  tanque: [1, 1, 'c 0 0 13 789|c 0 0 8 9ab'], // agua
+  estante: [2, 1, 'o -30 -14 60 26 778|c -16 -2 6 f93|o 2 -9 8 14 39f|o 14 -9 8 14 39f'],
+  tanque: [1, 1, 'c 0 0 13 789|c 0 0 8 9ab'],
   generador: [2, 1, 'o -30 -13 60 26 6a4|o -26 -9 20 18 333|c 12 0 8 333|c 12 0 3 fd3'],
-  camarote: [1, 2, 'o -13 -30 26 60 556|o -11 -27 22 24 a44|o -11 3 22 24 a44|o -9 -26 18 6 eee|o -9 4 18 6 eee'], // litera
+  camarote: [1, 2, 'o -13 -30 26 60 556|o -11 -27 22 24 a44|o -11 3 22 24 a44|o -9 -26 18 6 eee|o -9 4 18 6 eee'],
 };
-// Plantillas de pieza: muebles en orden contra la pared del fondo
 const ROOMS = {
   cocina: ['encimera', 'refri', 'mesa', 'planta'], dorm: ['cama', 'velador', 'closet', 'planta'],
   living: ['sofa', 'tele', 'librero', 'planta'], bano: ['tina', 'wc', 'planta'], gamer: ['escritorio', 'cama', 'librero'],
@@ -342,19 +316,18 @@ function drawFloor(s, f, F) {
   for (let i = 0; i < GW * GH; i++) {
     const c = F.g[i], x = (i % GW) * T, y = Math.floor(i / GW) * T;
     if (c == 1) {
-      if (F.g[i + GW] != 1 && i + GW < GW * GH) gr.fillStyle(0x4a3f8a).fillRect(x, y + T - 9, T, 9).fillStyle(0x8a7fe0).fillRect(x, y + T - 9, T, 2); // cara de la pared con brillo
+      if (F.g[i + GW] != 1 && i + GW < GW * GH) gr.fillStyle(0x4a3f8a).fillRect(x, y + T - 9, T, 9).fillStyle(0x8a7fe0).fillRect(x, y + T - 9, T, 2);
       continue;
     }
     gr.fillStyle(c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
     if ((x + y) / T % 2) gr.fillStyle(0x000000, 0.07).fillRect(x, y, T, T);
-    if (F.d[i] && F.d[i] < 11) gr.fillStyle(0, 0.1).fillRect(x, y + 10, T, 1).fillRect(x, y + 21, T, 1); // tablas de madera
+    if (F.d[i] && F.d[i] < 11) gr.fillStyle(0, 0.1).fillRect(x, y + 10, T, 1).fillRect(x, y + 21, T, 1);
     if (c == 5) gr.fillStyle(0x7fc0ff, 0.6).fillRect(x + 4 + (i % 3) * 6, y + 6 + (i % 4) * 6, 12, 2);
     if (c == 2 || c == 3) {
       gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(WHITE);
       c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
     }
   }
-  // alfombras apenas giradas bajo las filas libres; muebles de plantilla con el respaldo a la pared
   for (const [x, y, w, h, a] of F.rugs) {
     gr.save().translateCanvas(x, y).rotateCanvas(a).fillStyle(RUG[(x + y) % 5], 0.85).fillRect(-w / 2, -h / 2, w, h);
     gr.lineStyle(2, WHITE, 0.3).strokeRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).restore();
@@ -366,8 +339,8 @@ function drawFloor(s, f, F) {
     gr.restore();
   }
   if (!f) {
-    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? GOLD : 0x111111).fillRect(2 * T, y, 8, 8); // franja de peligro
-    for (const x of [6, 11, 15]) gr.fillStyle(0xff3030).fillCircle(x * T, T - 5, 4).fillStyle(0xff3030, 0.2).fillCircle(x * T, T - 5, 12); // luces rojas
+    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? GOLD : 0x111111).fillRect(2 * T, y, 8, 8);
+    for (const x of [6, 11, 15]) gr.fillStyle(0xff3030).fillCircle(x * T, T - 5, 4).fillStyle(0xff3030, 0.2).fillCircle(x * T, T - 5, 12);
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
   gr.destroy();
@@ -375,7 +348,6 @@ function drawFloor(s, f, F) {
   for (const [x, y, l] of F.labels) s.WL.add(txt(s, x * T, fy(f) + y * T + 8, l, 11, '#ffffffaa'));
 }
 
-// Un ícono top-down por objeto (32 px)
 const ICON = {
   bidon: 'o -9 -10 18 20 39f|o -5 -13 10 5 26d|c 4 -6 3 fff|r -7 -4 3 12 9cf',
   botella: 'R .6|o -4 -10 8 18 7cf|r -2 -13 4 4 fff',
@@ -426,16 +398,14 @@ function icons(s) {
   if (s.textures.exists('halo')) return;
   for (const k in ITEMS) {
     const g = s.make.graphics({ add: false }).translateCanvas(16, 16);
-    g.fillStyle(0, 0.35).fillEllipse(0, 1, 26, 20); // sombra centrada: el ícono rota
+    g.fillStyle(0, 0.35).fillEllipse(0, 1, 26, 20);
     paint(g, ICON[k], 1.2);
     g.generateTexture('i' + k, 32, 32).destroy();
   }
-  // halo amarillo de "se puede recoger"
   const g = s.make.graphics({ add: false });
   for (let r = 19; r > 8; r -= 2) g.fillStyle(GOLD, 0.05).fillCircle(20, 20, r);
   g.lineStyle(2, GOLD, 0.9).strokeCircle(20, 20, 14).generateTexture('halo', 40, 40).clear();
   g.fillStyle(WHITE).fillRect(0, 0, 4, 4).generateTexture('px', 4, 4).destroy();
-  // se cortó la luz: oscuridad con un círculo de luz al centro, que sigue a cada jugador
   const c = s.textures.createCanvas('dark', 1600, 1300), x = c.context, gr = x.createRadialGradient(800, 650, 70, 800, 650, 300);
   gr.addColorStop(0, 'rgba(20,0,40,0)');
   gr.addColorStop(1, 'rgba(20,0,40,.8)');
@@ -444,7 +414,6 @@ function icons(s) {
   c.refresh();
 }
 
-// ---------- partida ----------
 
 function start(s, np) {
   const st = s.st;
@@ -463,13 +432,12 @@ function start(s, np) {
   icons(s);
   for (const it of st.items) {
     it.h = s.add.image(it.x, it.y + fy(it.f), 'halo').setDepth(4);
-    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + it.k).setAngle(rnd(7) * 15 - 45).setDepth(1); // cada objeto tirado en su ángulo
+    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + it.k).setAngle(rnd(7) * 15 - 45).setDepth(1);
     if (ITEMS[it.k][2] == 'e') s.tweens.add({ targets: it.o, scale: 1.2, duration: 500, yoyo: true, repeat: -1 });
     s.WL.add([it.h, it.o]);
   }
   s.tweens.add({ targets: st.items.map((it) => it.h), alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
-  // HUD lateral: el edificio en corte
   s.UL.add(s.add.rectangle(720, 0, 80, H, 0x0d0d12).setOrigin(0));
   st.timer = txt(s, 760, 8, '60', 30, GOLDS).setOrigin(0.5, 0);
   s.UL.add(st.timer);
@@ -486,11 +454,9 @@ function start(s, np) {
   for (let i = 0; i < np; i++) {
     let x, y;
     do { x = 6 + rnd(6); y = 2 + rnd(2); } while (F3.g[y * GW + x] != 0);
-    // visto desde arriba, mirando hacia +x: mochila atrás, manos a los lados, hombros, cabeza con pelo atrás
     const bag = s.add.rectangle(-12, 0, 8, 18, 0x7a4a2c).setStrokeStyle(2, 0x111111);
     const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).setStrokeStyle(1, 0x111111));
     const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, 0x111111).strokeEllipse(0, 0, 16, 28)
-      // casco de obra visto desde arriba (P1 amarillo, P2 blanco): la visera apunta hacia donde mira
       .fillStyle(0xf0c8a8).fillCircle(1, 0, 7).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 7)
       .fillStyle(i ? 0xf2f2f2 : GOLD).fillEllipse(4, 0, 18, 20).strokeEllipse(4, 0, 18, 20).fillCircle(-1, 0, 8.5).strokeCircle(-1, 0, 8.5)
       .fillStyle(0, 0.25).fillRect(-9, -1, 17, 2).fillStyle(WHITE, 0.5).fillEllipse(-3, -4, 6, 4);
@@ -512,18 +478,16 @@ function start(s, np) {
     st.P.push(p);
   }
   if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, WHITE).setOrigin(0));
-  for (const p of st.P) for (const q of st.P) if (p != q) p.cam.ignore(q.dk); // cada cámara solo ve su propia oscuridad
-  // polvo que cae en los temblores (bajo la oscuridad) y chispas al tomar algo (sobre ella)
+  for (const p of st.P) for (const q of st.P) if (p != q) p.cam.ignore(q.dk);
   st.dust = s.add.particles(0, 0, 'px', { emitZone: { source: new Phaser.Geom.Rectangle(-320, -280, 640, 560) }, speedY: { min: 30, max: 90 },
     lifespan: 1400, scale: { start: 1, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: 0xbbaa99, emitting: false }).setDepth(2.5);
   st.spark = s.add.particles(0, 0, 'px', { speed: { min: 40, max: 130 }, lifespan: 450, scale: { start: 1.2, end: 0 }, tint: GOLD, emitting: false }).setDepth(4);
   s.WL.add([st.dust, st.spark]);
   st.hud = s.cameras.add(0, 0, W, H).ignore(s.WL);
-  s.UL.add(crt(s)); // líneas de monitor también en el saqueo
+  s.UL.add(crt(s));
   st.left = LOOT_S;
   st.ni = st.sh = st.at = 0;
   st.ph = 'alert';
-  // 03:34: la hora del 27F
   const ph = s.add.graphics().fillStyle(0x000000, 0.85).fillRect(0, 0, W, H)
     .fillStyle(0x1b1b22).fillRoundedRect(250, 60, 300, 480, 36)
     .fillStyle(0x0a0a0f).fillRoundedRect(262, 72, 276, 456, 26)
@@ -541,7 +505,6 @@ function start(s, np) {
   alarm(s);
 }
 
-// [segundos restantes, de, mensaje]
 const NOTIFS = [
   [56, 'Mamá', '¿Dónde estái? Contesta'],
   [50, 'Familia (47)', 'Tía Gloria: peor que el del 60'],
@@ -569,7 +532,7 @@ const tileAt = (f, x, y) => {
   const tx = Math.floor(x / T), ty = Math.floor(y / T);
   return tx < 0 || ty < 0 || tx >= GW || ty >= GH ? 1 : s_floors[f].g[ty * GW + tx];
 };
-let s_floors; // shortcut: referencia global al edificio actual, una sola escena
+let s_floors;
 const blocked = (f, x, y) => [[-10, -10], [10, -10], [-10, 10], [10, 10]].some(([a, b]) => {
   const c = tileAt(f, x + a, y + b);
   return c == 1 || c >= 4;
@@ -602,12 +565,12 @@ function stepPlayer(s, p, t, dt) {
   if ((c == 2 || c == 3) && t >= p.lock) {
     p.f += c == 2 ? 1 : -1;
     p.x = 2 * T + T / 2;
-    p.y = (c == 2 ? 6 : 8) * T + T / 2; // llegas junto a la misma escalera: mantener ← sigue bajando/subiendo
-    p.lock = t + (st.left < 20 ? 800 : 450); // con temblores, la escalera cuesta más
+    p.y = (c == 2 ? 6 : 8) * T + T / 2;
+    p.lock = t + (st.left < 20 ? 800 : 450);
     [600, 480].forEach((fq, j) => tone(s, fq, 0.05, SQ, 0.06, j * 0.12));
   }
   if (p.f == 0 && p.bag.length) {
-    say(st, 'Objetos al bunker: ' + p.bag.length); // la lista completa no cabía en pantalla
+    say(st, 'Objetos al bunker: ' + p.bag.length);
     st.bunker.push(...p.bag);
     [523, 659, 784].forEach((fq, j) => tone(s, fq, 0.12, TRI, 0.15, j * 0.08));
     p.bag = [];
@@ -628,9 +591,8 @@ function stepPlayer(s, p, t, dt) {
 
   const wy = p.y + fy(p.f), show = nearest(st, p, 40), mv = vx || vy, scared = st.left < 20;
   if (mv) p.o.rotation = Phaser.Math.Angle.RotateTo(p.o.rotation, Math.atan2(vy, vx), 0.25);
-  const sw = mv ? Math.sin(t / 70) * 4 : 0, u = used(p), jit = scared ? Math.random() - 0.5 : 0; // con temblores, tiritan
+  const sw = mv ? Math.sin(t / 70) * 4 : 0, u = used(p), jit = scared ? Math.random() - 0.5 : 0;
   p.o.setPosition(p.x + jit, wy + jit);
-  // la linterna (con o sin pilas, para no castigar) agranda la luz; con temblores parpadea
   p.dk.setPosition(p.x, wy).setScale(p.bag.some((it) => it.k == 'linterna') ? 1.6 : 1).setAlpha(scared ? 0.85 + Math.random() * 0.15 : 1);
   p.hands[0].x = 3 + sw;
   p.hands[1].x = 3 - sw;
@@ -638,7 +600,6 @@ function stepPlayer(s, p, t, dt) {
   p.lt.setVisible(!!show);
   if (show) p.lt.setText(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
   p.dot.y = hy(p.f) + 17;
-  // en 2P la lista de P1 se montaba sobre la de P2: solo el conteo
   p.bt.setText(p.k.slice(0, 2) + ' ' + u + '/' + SLOTS + (st.P[1] ? '' : ' ' + p.bag.map((it) => ITEMS[it.k][0]).join(', ')));
 }
 
@@ -649,7 +610,6 @@ function endLoot(s) {
   st.ct = 0;
   st.mag = big(s, W / 2, H / 2, '6.0', 130, WHT).setOrigin(0.5);
   st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, ORS, BLK).setOrigin(0.5);
-  // más grande que la pantalla: el shake no deja ver los bordes
   st.cine = s.add.container(0, 0, [s.add.rectangle(-100, -100, W + 200, H + 200, 0x000000).setOrigin(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
   s.UL.add(st.cine);
   rumble(s, 7, 0.7);
@@ -683,13 +643,11 @@ function cine(s, dt) {
   if (ct > 11500 || (ct > 1500 && (pressed(s, 'START1') || pressed(s, 'START2')))) startLog(s);
 }
 
-// Tierra caricaturesca partida en dos por una grieta en zigzag
 function earth(s) {
   const r = 110, zig = [], X = W / 2, Y = 250, add = (o, tw) => (s.st.cine.add(o), s.tweens.add({ targets: o, ...tw }));
   for (let i = 0; i <= 8; i++) zig.push({ x: i % 8 ? (i % 2 ? 14 : -14) : 0, y: -r + (i * r) / 4 });
-  // núcleo de lava que late entre las dos mitades
   const core = s.add.circle(X, Y, 72, 0xff6b1a).setStrokeStyle(10, GOLD);
-  core.postFX?.addGlow(0xff4a1a, 8, 0, false, 0.1, 20); // halo suave (solo WebGL)
+  core.postFX?.addGlow(0xff4a1a, 8, 0, false, 0.1, 20);
   add(core, { scale: 0.88, duration: 300, yoyo: true, repeat: 9 });
   const half = (sd, lands) => {
     const pts = zig.map((p) => ({ ...p }));
@@ -699,26 +657,22 @@ function earth(s) {
     }
     const g = s.add.graphics({ x: X, y: Y }).fillStyle(0x2a6fdb).fillPoints(pts, true).fillStyle(0x3bb36b);
     for (const [x, y, rr] of lands) g.fillCircle(sd * x, y, rr);
-    // atmósfera en el borde y, en la grieta, el corte: corteza café con magma encima
     g.lineStyle(5, 0x8fd0ff).strokePoints(pts, true).lineStyle(16, 0x7a4a2a).strokePoints(zig).lineStyle(7, 0xff6b1a).strokePoints(zig);
     add(g, { x: X + sd * 165, angle: sd * 24, duration: 2400, ease: 'Expo.easeOut' });
   };
   half(-1, [[55, -30, 30], [40, 50, 18]]);
   half(1, [[50, -45, 26], [62, 38, 22], [30, 8, 12]]);
-  // escombros disparados en todas direcciones
   for (let i = 0; i < 50; i++) {
     const a = Math.random() * 7, d = 150 + rnd(400);
     add(s.add.rectangle(X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, GOLD])),
       { x: X + Math.cos(a) * d, y: Y + Math.sin(a) * d, angle: rnd(900), alpha: 0, duration: 1500 + rnd(2000), ease: 'Cubic.easeOut' });
   }
-  // dos ondas de choque y un destello blanco
   for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).setStrokeStyle(8 - i * 4, i ? WHITE : GOLD), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
   add(s.add.rectangle(0, 0, W, H, WHITE).setOrigin(0), { alpha: 0, duration: 700 });
 }
 
-// ---------- E3: bitácora de días ----------
 
-const WATER = { bidon: 12, botella: 3, bebida: 6 }; // raciones (1 persona, 1 día)
+const WATER = { bidon: 12, botella: 3, bebida: 6 };
 const FOOD = { lata: 4, porotos: 4, tallarines: 5, marraqueta: 3, charqui: 6, manjar: 4, sopaipillas: 2, completo: 2 };
 const FLAVOR = [
   'Afuera llueve ceniza.', 'Día tranquilo. Demasiado tranquilo.',
@@ -726,7 +680,6 @@ const FLAVOR = [
   'Discusión eterna: ¿completo o churrasco?',
   'Se juega al "veo veo". En la oscuridad.', 'Alguien cuenta las grietas del techo. Van 41.',
 ];
-// frases que solo salen si tienes a alguien o algo
 const CTX = [
   ['abuela', 'La abuela jura que el del 60 fue peor.'],
   ['perro', 'El quiltro le ladra a la escotilla toda la noche.'],
@@ -741,10 +694,6 @@ const MILE = {
   5: 'Murió el último celular. Ahora sí, solos.', 7: 'Una semana. Ya no se escuchan sirenas.',
   10: 'Alguien raya la pared: diez palitos.',
 };
-// Evento: [tipo r=réplica s=saqueo m=varios, texto, efecto previo, opciones, condición (ids o #marca)]
-// Opción: [texto, requiere (ids con +), prob. de éxito, efecto éxito, texto éxito, efecto fracaso, texto fracaso]
-// Efectos: a±n agua, c±n comida, h herido, s enfermo, x sana a alguien, k muere alguien,
-//          +id gana, -id pierde, d un día de raciones extra, e acerca el rescate, r rescate, #x marca historia
 const EVENTS = [
   ['r', 'Réplica fuerte. El techo cruje y cae polvo.', '', [
     ['Afirmar con cinta', 'cinta', 0.9, '', 'La cinta aguanta todo.', 'h', 'Cae una viga.'],
@@ -868,14 +817,13 @@ const ENDINGS = [
 ];
 
 const alive = (st) => st.ppl.filter((p) => p.st < 3);
-const person = (n, k) => ({ n, k, st: 0, w: 1, f: 1, th: 0, hu: 0 }); // w/f: recibe agua/comida
+const person = (n, k) => ({ n, k, st: 0, w: 1, f: 1, th: 0, hu: 0 });
 const has = (st, req) => !req || req.split('+').every((k) => st.inv[k] > 0 || st.ppl.some((p) => p.k == k && p.st < 3));
-const STATE = ['sano', 'herido', 'enfermo', 'muerto', 'se fue']; // >= 3: ya no está en el bunker
-const LIM = { w: 5, f: 12 }; // días sin agua / sin comida antes de morir
-const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bonus de radio)
+const STATE = ['sano', 'herido', 'enfermo', 'muerto', 'se fue'];
+const LIM = { w: 5, f: 12 };
+const ENDING_DAY = 10;
 
 const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
-// Una sola escala en todo el panel: verde bien, amarillo atención, rojo crítico, gris ya no está
 const SEV = [0x2ec4a0, GOLD, 0xff4a4a, 0x666666], hx = (n) => '#' + n.toString(16).padStart(6, '0');
 const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', GOLD], x: ['FIN', 0x9b7bff] };
 const names = (req) => req.split('+').map((k) => ITEMS[k][0]).join(' + ');
@@ -905,11 +853,9 @@ function startLog(s) {
   }
   st.eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
 
-  // fondo y barra de título estilo marquesina
   s.UL.add([s.add.graphics().fillStyle(0x0c0a16).fillRect(0, 0, W, H).fillStyle(0x1c1638).fillRect(0, 0, W, 48).fillStyle(GOLD).fillRect(0, 48, W, 3),
     big(s, 20, 6, 'BITÁCORA DEL BUNKER', 28, GOLDS)]);
   st.logC = s.add.container();
-  // panel derecho
   st.statC = s.add.container(0, 0, [
     s.add.rectangle(516, 56, 268, 250, 0x15122a).setOrigin(0).setStrokeStyle(2, 0x3b9cff),
     big(s, 532, 64, 'AGUA', 14, '#3b9cff', BLK),
@@ -920,11 +866,10 @@ function startLog(s) {
   st.dayT = big(s, 780, 4, '', 32, WHT).setOrigin(1, 0);
   st.aT = big(s, 532, 80, '', 30, '#3b9cff', BLK);
   st.cT = big(s, 652, 80, '', 30, ORS, BLK);
-  st.spT = [532, 652].map((x) => txt(s, x, 112, '', 12)); // cuántos días alcanza con la regla de raciones actual
+  st.spT = [532, 652].map((x) => txt(s, x, 112, '', 12));
   st.rbar = [532, 652].map((x) => s.add.rectangle(x, 129, 0, 4).setOrigin(0));
   st.toolT = txt(s, 532, 0, '', 13, '#999').setWordWrapWidth(236);
   st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, ...st.rbar, st.toolT]);
-  // tarjeta de evento
   st.card = s.add.container(W / 2, 452).setVisible(false);
   st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x16131f).setStrokeStyle(3, GOLD);
   st.tag = s.add.rectangle(-324, -128, 110, 26, GOLD).setOrigin(0);
@@ -943,7 +888,7 @@ function startLog(s) {
   log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', GOLDS);
   st.lt = DAY_MS;
   if (!n) gameOver(s, 'El apocalipsis empezó sin ' + (st.P.length > 1 ? 'ustedes.' : 'ti.'));
-  else openRation(s, 'Primera noche. ¿Cómo se reparte?'); // antes de consumir nada
+  else openRation(s, 'Primera noche. ¿Cómo se reparte?');
 }
 
 function log(st, m, col = '#cfcfe0') {
@@ -954,7 +899,6 @@ function log(st, m, col = '#cfcfe0') {
   stat(st);
 }
 
-// Apila las líneas desde arriba; si no caben (la tarjeta ocupa la mitad de abajo), borra las más viejas.
 function layoutLog(st) {
   const max = (st.ev || st.over ? 300 : 584) - 60;
   while (st.rows.reduce((a, r) => a + r.height + 8, 0) > max) st.rows.shift().destroy();
@@ -967,7 +911,6 @@ const sev = (p) => (p.st > 2 ? 3 : p.th >= LIM.w - 2 || p.hu >= LIM.f - 3 ? 2 : 
 function stat(st) {
   const s = st.s, ppl = alive(st);
   st.dayT.setText('DÍA ' + st.day);
-  // agua y comida: color y barra según los días que alcanzan con la regla actual
   [st.a, st.c].forEach((v, i) => {
     const n = ppl.filter((p) => (i ? p.f : p.w)).length, d = n ? Math.floor(v / n) : 9, c = SEV[d > 3 ? 0 : d > 1 ? 1 : 2];
     [st.aT, st.cT][i].setText(v).setColor(hx(c));
@@ -980,7 +923,6 @@ function stat(st) {
     txt(s, 546, 152 + i * 20, p.n + ': ' + (p.st > 2 ? STATE[p.st] : [p.st && STATE[p.st], p.th && 'sed ' + p.th, p.hu > 2 && 'hambre ' + p.hu].filter(Boolean).join(' · ') || 'bien'),
       12, hx(SEV[sev(p)])),
   ]);
-  // a la derecha de cada persona, qué le da la regla de raciones
   st.pplT.push(...ppl.map((p) => txt(s, 776, 152 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 13, mode(p) ? ORS : '#9cc9ff').setOrigin(1, 0)));
   st.statC.add(st.pplT);
   const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
@@ -1010,17 +952,15 @@ function apply(st, eff) {
     else if (e[0] == '#') st.fl[k] = 1;
     else if (e[0] == '+') ITEMS[k][2] == 'p' ? st.ppl.push(person(ITEMS[k][0], k)) : (st.inv[k] = (st.inv[k] || 0) + 1);
     else if (e[0] == '-') {
-      const p = alive(st).find((q) => q.k == k); // quitar a una persona (devolver el gato): se va del bunker
+      const p = alive(st).find((q) => q.k == k);
       p ? (p.st = 4) : (st.inv[k] = Math.max(0, (st.inv[k] || 0) - 1));
     }
   }
 }
 
-// Peso de cada tipo según el día: réplicas decaen (Omori ~1/t), saqueos pico en días 2-5.
 const weight = (tp, d) => (tp == 'r' ? 6 / (d + 1) : tp == 's' ? (d >= 2 && d <= 5 ? 3 : 0.8) : 1);
 const elig = (st, c) => !c || c.split(' ').every((t) => (t[0] == '#' ? st.fl[t.slice(1)] : has(st, t)));
 const usable = (st, opts) => opts.filter((o) => o[1] && has(st, o[1])).length;
-// Sesgo: cada opción que SÍ puedes usar triplica las chances; las historias pesan x3 al empezar y x30 al continuar.
 const starts = (e) => /#/.test(e[2] + e[3].map((o) => o[3] + o[5]).join(''));
 const wEv = (st, e) => weight(e[0], st.day) * (1 + 2 * usable(st, e[3])) * (e[4] && e[4][0] == '#' ? 30 : starts(e) ? 3 : 1);
 const wpick = (a, w) => {
@@ -1062,7 +1002,6 @@ function nextDay(s) {
   }
   const ppl = alive(st);
   if (!ppl.length) return gameOver(s, 'No sobrevivió nadie.');
-  // Alguien racionado y débil va antes que eventos y finales: si no, dos tarjetas seguidas lo matan sin preguntar.
   const weak = ppl.find((p) => (!p.w && p.th >= LIM.w - 2) || (!p.f && p.hu >= LIM.f - 3));
   if (weak && st.day > st.lastR) return openRation(s, weak.n + (weak.n == 'Tú' ? ' estás' : ' está') + ' muy débil. ¿Le das algo?');
   if (st.day >= ENDING_DAY && Math.random() < 0.1 + st.eb) {
@@ -1080,7 +1019,6 @@ function nextDay(s) {
   }
   const nw = ppl.filter((p) => p.w).length, nf = ppl.filter((p) => p.f).length;
   if (ppl.some((p) => !p.w || !p.f) && st.day - st.lastR >= 2) openRation(s, 'Hay gente racionada. ¿Siguen así?');
-  // con 0 de un recurso no hay nada que repartir: solo pregunta si queda algo
   else if (((st.a && st.a < nw) || (st.c && st.c < nf)) && st.day - st.lastR >= 2) openRation(s, 'Mañana no alcanza para todos. ¿A quién le das?');
   else if (st.day - st.lastR >= 4 && st.a + st.c) openRation(s, 'Revisar las raciones. Quedan ' + st.a + ' de agua y ' + st.c + ' de comida.');
 }
@@ -1102,7 +1040,6 @@ function openRation(s, why) {
   drawRation(st);
 }
 
-// La tarjeta tiene 7 filas: 6 personas + LISTO. shortcut: de la séptima persona en adelante mantienen su ración, sin poder cambiarla.
 function drawRation(st) {
   const ppl = alive(st).slice(0, 6), ev = st.ev;
   st.rT.forEach((t, i) =>
@@ -1158,7 +1095,6 @@ function drawCard(st) {
   st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? '#999' : ORS);
 }
 
-// Qué cambió después de aplicar un efecto, para mostrarlo en la tarjeta.
 function diff(st, b) {
   const d = [];
   if (st.a != b.a) d.push('Agua ' + (st.a > b.a ? '+' : '') + (st.a - b.a));
@@ -1275,7 +1211,7 @@ function saveScore(s) {
   const st = s.st, np = st.P.length, row = { n: st.nm.l.map((c) => ABC[c]).join(''), s: st.score, d: st.day };
   st.nm = null;
   RANK[np] = clean([...RANK[np], row]);
-  store().set(RK, RANK).catch(() => {}); // sin storage, el ranking vive hasta recargar
+  store().set(RK, RANK).catch(() => {});
   st.hint.setText('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P   ·   START para volver').setColor('#2ec4a0');
   [523, 659, 784, 1047].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1));
 }
@@ -1283,7 +1219,6 @@ function saveScore(s) {
 function update(t, dt) {
   const s = this, st = s.st;
   dt = Math.min(dt, 50);
-  // tema en el título y la bitácora; en el saqueo, la pista tensa se acelera al doble a medida que baja el reloj
   music(s, st.ph == 'title' || st.ph == 'log' ? 0 : st.ph == 'loot' ? 1 : -1, ...(st.ph == 'loot' ? [0.4 + st.left / 100, st.left < 20 ? 3 : st.left < 40 ? 2 : 1] : [1]));
   if (st.ph == 'title') {
     const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
@@ -1306,7 +1241,7 @@ function update(t, dt) {
     for (const p of st.P) stepPlayer(s, p, t, dt);
     if (st.ni < NOTIFS.length && st.left <= NOTIFS[st.ni][0]) notify(s, ...NOTIFS[st.ni++].slice(1));
     if (st.left < 10 && Math.ceil(st.left) != st.tk) { st.tk = Math.ceil(st.left); tone(s, 1200, 0.04, SQ, 0.08); }
-    if (st.left < 20 && (st.sh -= dt) <= 0) { // temblores de aviso que crecen
+    if (st.left < 20 && (st.sh -= dt) <= 0) {
       const k = (20 - st.left) / 20;
       st.sh = 1500 - 900 * k + rnd(600);
       s.cameras.cameras.forEach((c) => c != st.hud && c.shake(400, 0.003 + 0.012 * k));
@@ -1324,7 +1259,6 @@ function update(t, dt) {
   s.ctl.pressed = Object.create(null);
 }
 
-// ---------- audio procedural ----------
 
 function ac(s) {
   const c = s.sound.context;
@@ -1345,32 +1279,27 @@ function tone(s, f, d, type, v, at = 0) {
   o.stop(t0 + d);
 }
 
-// Música 8-bit. Cada carácter es una nota: semitonos desde La4 ('N' = 0); '.' es silencio.
-// [segundos por paso, melodía, bajo, pasos por nota de bajo]
 const SONGS = [
-  // título y bitácora: Marcha Radetzky (J. Strauss padre, 1848, dominio público), Re mayor, bajo de marcha
   [0.12, 'G.GGGFGIK.KKKIKLN.NNNLKIG...B...D.DDDBDFG.GGGFGIK.I.G.F.G.......', '/6/6/6/6*1*1/6/64;4;/6/6*1*1/6/6', 2],
-  // saqueo: loop original en Re menor que crece por capas (ver music)
   [0.2, 'GJNJILNL', '/./.2.1.', 1],
 ];
 let MU = { k: -1 };
 const hz = (c, tr = 0) => 440 * 2 ** ((c.charCodeAt(0) - 78 + tr) / 12);
-// ly: capas del saqueo. 1 = bajo + tic, 2 = + arpegio, 3 = sube medio tono por vuelta + alarma (como cuando te ahogas)
 function music(s, k, sp, ly = 2) {
   const c = s.sound.context;
-  if (!c || c.state != 'running') return; // el navegador no deja sonar nada antes de la primera tecla
+  if (!c || c.state != 'running') return;
   if (k != MU.k) MU = { k, i: 0, t: c.currentTime + 0.1 };
   if (k < 0) return;
   const [d, mel, bas, ev] = SONGS[k];
-  MU.t = Math.max(MU.t, c.currentTime); // si la pestaña se durmió, no recuperar notas atrasadas
-  while (MU.t < c.currentTime + 0.12) { // agenda un poco adelante: el ritmo no depende de los fps
+  MU.t = Math.max(MU.t, c.currentTime);
+  while (MU.t < c.currentTime + 0.12) {
     const at = MU.t - c.currentTime, m = mel[MU.i % mel.length], b = bas[(MU.i / ev | 0) % bas.length];
     if (ly > 2) MU.u ??= MU.i;
     const tr = ly > 2 ? Math.min(8, ((MU.i - MU.u) / 8) | 0) : 0;
     if (ly > 1 && m != '.') tone(s, hz(m, tr), d * sp * 0.9, TRI, 0.16, at);
     if (MU.i % ev == 0 && b != '.') tone(s, hz(b, tr), d * sp * ev * 0.8, SQ, 0.04, at);
-    if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, SQ, 0.02, at); // tic de reloj
-    if (ly > 2 && MU.i % 4 == 0) tone(s, hz('Z', tr), d * sp, SQ, 0.03, at); // alarma
+    if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, SQ, 0.02, at);
+    if (ly > 2 && MU.i % 4 == 0) tone(s, hz('Z', tr), d * sp, SQ, 0.03, at);
     MU.i++;
     MU.t += d * sp;
   }
@@ -1394,13 +1323,12 @@ function rumble(s, d, v) {
   n.start();
 }
 
-// ---------- controles (del starter) ----------
 
 function createControls(scene) {
   scene.ctl = { held: Object.create(null), pressed: Object.create(null) };
   const onKeyDown = (event) => {
     const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
-    ac(scene); // primera tecla: se habilita el audio
+    ac(scene);
     if (!code) return;
     if (!scene.ctl.held[code]) scene.ctl.pressed[code] = true;
     scene.ctl.held[code] = true;
@@ -1423,7 +1351,6 @@ function pressed(scene, code) {
   return v;
 }
 
-// Mismo resultado que el del starter para toda tecla del gabinete; más corto para hacer espacio.
 function normalizeIncomingKey(key) {
   return String(key).toLowerCase();
 }

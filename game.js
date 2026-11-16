@@ -778,9 +778,6 @@ const EVENTS = [
     ['Abrirla con el cortaplumas', 'cortaplumas', 1, 'c+2', 'Click. Porotos.', '', ''],
     ['Usar el abrelatas', 'abrelatas', 1, 'c+2', 'Como la gente.', '', ''],
     ['A combos', '', 0.4, 'c+2', 'Se abrió.', 'h', 'Te cortas la mano.']]],
-  ['m', 'Un caballo asustado pasa por la calle.', '', [
-    ['Montarlo con el sombrero de huaso', 'huaso', 0.8, 'c+4 a+2', 'Galopas a un fundo con comida.', 'h', 'El caballo no era de rodeo.'],
-    ['Dejarlo ir', '', 1, '', 'Libre como el viento.', '', '']]],
   ['m', 'Un gato se cuela por una grieta.', '', [
     ['Adoptarlo', '', 0.8, '+gato', 'Ronronea. Sube el ánimo.', 'h', 'Te araña la cara.'],
     ['Echarlo', '', 1, '', 'El gato te mira con desprecio.', '', '']]],
@@ -1273,7 +1270,7 @@ function update(t, dt) {
   const s = this, st = s.st;
   dt = Math.min(dt, 50);
   // tema en el título y la bitácora; en el saqueo, la pista tensa se acelera al doble a medida que baja el reloj
-  music(s, st.ph == 'title' || st.ph == 'log' ? 0 : st.ph == 'loot' ? 1 : -1, st.ph == 'loot' ? 0.5 + st.left / 120 : 1);
+  music(s, st.ph == 'title' || st.ph == 'log' ? 0 : st.ph == 'loot' ? 1 : -1, ...(st.ph == 'loot' ? [0.4 + st.left / 100, st.left < 20 ? 3 : st.left < 40 ? 2 : 1] : [1]));
   if (st.ph == 'title') {
     const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
     const h = any('R') - any('L');
@@ -1340,12 +1337,13 @@ const SONGS = [
   // tema original, alegre y sincopado al estilo de los plataformeros 8-bit, Do mayor, con bajo que salta de octava
   [0.13, '@.E.IG.E.B.EG...@.E.IL.IJ.IG.E..B.E.JI.G.E.BE...D.G.LJ.GE.......',
     '9.E.9.E96.B.6.B69.E.9.E92.>.2.>22.>.2.>26.B.6.B64.@.4.@49.E.9.E9', 1],
-  // saqueo: Grieg, "En la gruta del rey de la montaña" (dominio público); se acelera con el reloj como la original
-  [0.16, 'DFGIKGK.JFJ.IEI.DFGIKGKPNKGKN...', '838383838383638.', 2],
+  // saqueo: loop original en Re menor que crece por capas (ver music)
+  [0.2, 'GJNJILNL', '/./.2.1.', 1],
 ];
 let MU = { k: -1 };
-const hz = (c) => 440 * 2 ** ((c.charCodeAt(0) - 78) / 12);
-function music(s, k, sp) {
+const hz = (c, tr = 0) => 440 * 2 ** ((c.charCodeAt(0) - 78 + tr) / 12);
+// ly: capas del saqueo. 1 = bajo + tic, 2 = + arpegio, 3 = sube medio tono por vuelta + alarma (como cuando te ahogas)
+function music(s, k, sp, ly = 2) {
   const c = s.sound.context;
   if (!c || c.state != 'running') return; // el navegador no deja sonar nada antes de la primera tecla
   if (k != MU.k) MU = { k, i: 0, t: c.currentTime + 0.1 };
@@ -1354,8 +1352,12 @@ function music(s, k, sp) {
   MU.t = Math.max(MU.t, c.currentTime); // si la pestaña se durmió, no recuperar notas atrasadas
   while (MU.t < c.currentTime + 0.12) { // agenda un poco adelante: el ritmo no depende de los fps
     const at = MU.t - c.currentTime, m = mel[MU.i % mel.length], b = bas[(MU.i / ev | 0) % bas.length];
-    if (m != '.') tone(s, hz(m), d * sp * 0.9, 'triangle', 0.16, at);
-    if (MU.i % ev == 0 && b != '.') tone(s, hz(b), d * sp * ev * 0.8, 'square', 0.04, at);
+    if (ly > 2) MU.u ??= MU.i;
+    const tr = ly > 2 ? Math.min(8, ((MU.i - MU.u) / 8) | 0) : 0;
+    if (ly > 1 && m != '.') tone(s, hz(m, tr), d * sp * 0.9, 'triangle', 0.16, at);
+    if (MU.i % ev == 0 && b != '.') tone(s, hz(b, tr), d * sp * ev * 0.8, 'square', 0.04, at);
+    if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, 'square', 0.02, at); // tic de reloj
+    if (ly > 2 && MU.i % 4 == 0) tone(s, hz('Z', tr), d * sp, 'square', 0.03, at); // alarma
     MU.i++;
     MU.t += d * sp;
   }

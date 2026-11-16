@@ -57,18 +57,18 @@ const ITEMS = {
 const EGGS = Object.keys(ITEMS).filter((k) => ITEMS[k][2] == 'e');
 const LOOT = Object.keys(ITEMS).filter((k) => 'ach'.includes(ITEMS[k][2]));
 const COMMON = ['botella', 'lata', 'marraqueta', 'linterna', 'pilas'];
-// [nombre, color de piso, loot sesgado]
+// [nombre, color de piso, loot sesgado, plantilla de la pieza izquierda y derecha]
 const THEMES = [
-  ['Tu familia', 0x6b5a3c, ['bidon', 'lata', 'botiquin', 'frazada', 'abrelatas']],
-  ['Abuelita', 0x7a5a6a, ['lata', 'porotos', 'manjar', 'botiquin', 'frazada', 'naipe', 'uslero']],
-  ['Gamer', 0x3c3f6b, ['pilas', 'linterna', 'bebida', 'tallarines', 'cinta']],
-  ['Conserje', 0x5a5a4a, ['linterna', 'cinta', 'cortaplumas', 'gas', 'radio', 'abrelatas']],
-  ['Estudiante', 0x4a6b5a, ['tallarines', 'bebida', 'pisco', 'encendedor', 'marraqueta']],
-  ['Doctora', 0x6b7a8a, ['botiquin', 'mascarilla', 'botella', 'bidon']],
-  ['Tío del asado', 0x7a4a3c, ['charqui', 'encendedor', 'gas', 'pisco', 'marraqueta']],
-  ['Airbnb vacío', 0x55555f, ['botella']],
-  ['Hippie', 0x5a7a3c, ['guitarra', 'encendedor', 'porotos', 'botella', 'mapa']],
-  ['Deportista', 0x3c6b7a, ['botella', 'bidon', 'charqui', 'sopaipillas']],
+  ['Tu familia', 0x6b5a3c, ['bidon', 'lata', 'botiquin', 'frazada', 'abrelatas'], 'cocina dorm'],
+  ['Abuelita', 0x7a5a6a, ['lata', 'porotos', 'manjar', 'botiquin', 'frazada', 'naipe', 'uslero'], 'living dorm'],
+  ['Gamer', 0x3c3f6b, ['pilas', 'linterna', 'bebida', 'tallarines', 'cinta'], 'gamer living'],
+  ['Conserje', 0x5a5a4a, ['linterna', 'cinta', 'cortaplumas', 'gas', 'radio', 'abrelatas'], 'living bano'],
+  ['Estudiante', 0x4a6b5a, ['tallarines', 'bebida', 'pisco', 'encendedor', 'marraqueta'], 'gamer cocina'],
+  ['Doctora', 0x6b7a8a, ['botiquin', 'mascarilla', 'botella', 'bidon'], 'cocina bano'],
+  ['Tío del asado', 0x7a4a3c, ['charqui', 'encendedor', 'gas', 'pisco', 'marraqueta'], 'asado living'],
+  ['Airbnb vacío', 0x55555f, ['botella'], 'nada vacio'],
+  ['Hippie', 0x5a7a3c, ['guitarra', 'encendedor', 'porotos', 'botella', 'mapa'], 'living dorm'],
+  ['Deportista', 0x3c6b7a, ['botella', 'bidon', 'charqui', 'sopaipillas'], 'cocina dorm'],
 ];
 // color de piso por zona: 0 pasillo, 1..10 temas, 11 bunker, 12 PH
 const FC = [0x3a3a44, ...THEMES.map((t) => t[1]), 0x4a2a2a, 0x8a7440];
@@ -166,7 +166,7 @@ const qualifies = (np, sc) => sc > 0 && RANK && (RANK[np].length < RMAX || sc > 
 // ---------- generación del edificio ----------
 
 function genFloor(f, extra) {
-  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [], rugs = [];
+  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [], rugs = [], furn = [];
   const set = (x, y, v, t) => { g[y * GW + x] = v; if (t !== undefined) d[y * GW + x] = t; };
   const open = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 0, t); };
   const put = (k, xy) => xy && items.push({ k, f, x: xy[0] * T + T / 2, y: xy[1] * T + T / 2 });
@@ -176,18 +176,23 @@ function genFloor(f, extra) {
       if (g[y * GW + x] == 0 && !items.some((it) => it.x == x * T + T / 2 && it.y == y * T + T / 2)) return [x, y];
     }
   };
-  const furnish = (x0, y0, x1, y1, n, avoid) => { // muebles solo en filas de borde: el centro siempre queda libre
-    for (let i = 0; i < n; i++) {
-      const x = x0 + rnd(x1 - x0 + 1), y = rnd(2) ? y0 : y1;
-      if (!avoid.includes(x) && g[y * GW + x] == 0) set(x, y, 4);
-    }
+  // Mueble de w×h casillas con su respaldo contra la fila `by`; dir = 1 crece hacia abajo, -1 hacia arriba (y se dibuja girado)
+  const place = (k, cx, by, dir) => {
+    const [w, h] = FURN[k];
+    for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) set(cx + i, by + dir * j, 4);
+    furn.push([k, (cx + w / 2) * T, (by + (dir * (h - 1)) / 2 + 0.5) * T, dir]);
+  };
+  // Llena una pieza de izquierda a derecha contra la pared del fondo; las dos filas del lado del pasillo quedan libres
+  const fill = (x0, x1, by, dir, room) => {
+    for (const k of ROOMS[room]) if (x0 + FURN[k][0] - 1 <= x1) { place(k, x0, by, dir); x0 += FURN[k][0]; }
   };
 
   if (f == 0) {
     open(1, 1, 22, 13, 11);
     set(1, 6, 2);
-    labels.push([4, 2, 'BUNKER -3: aquí se vacía la mochila']);
-    return { g, d, items, labels, rugs };
+    for (const [k, x, y, dr] of [['librero', 4, 1, 1], ['librero', 5, 1, 1], ['encimera', 7, 1, 1], ['refri', 10, 1, 1], ['cama', 18, 13, -1], ['cama', 20, 13, -1], ['mesa', 10, 13, -1]]) place(k, x, y, dr);
+    labels.push([4, 3, 'BUNKER -3: aquí se vacía la mochila']);
+    return { g, d, items, labels, rugs, furn };
   }
 
   open(1, 6, 48, 8, 0);
@@ -198,11 +203,11 @@ function genFloor(f, extra) {
     open(4, 1, 48, 13, 12);
     open(2, 6, 4, 8, 12); // desde x=2: la columna 1 es la de las escaleras
     for (let y = 4; y <= 10; y++) for (let x = 22; x <= 32; x++) set(x, y, 5);
-    furnish(5, 1, 47, 13, 26, []);
+    for (const [k, x, y, dr] of PH) place(k, x, y, dr);
     for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
     for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
     labels.push([6, 2, 'PH · Mansión del cuico']);
-    return { g, d, items, labels, rugs };
+    return { g, d, items, labels, rugs, furn };
   }
 
   let n = 0;
@@ -213,13 +218,15 @@ function genFloor(f, extra) {
       const family = f == FAMILY_FLOOR && n == 0, ti = family ? 0 : 1 + rnd(THEMES.length - 1), th = THEMES[ti];
       open(x, y0, x1, y1, ti + 1);
       const sx = x + 3 + rnd(x1 - x - 5);
-      rugs.push([((x + sx) / 2) * T, ((y0 + y1 + 1) / 2) * T, (sx - x) * T * 0.6, 2 * T, (Math.random() - 0.5) * 0.6]);
+      const top = dr == 5, by = top ? y0 : y1, dir = top ? 1 : -1, [ra, rb] = th[3].split(' ');
+      rugs.push([((x + sx) / 2) * T, (top ? y0 + 3 : y0 + 1) * T, (sx - x) * T * 0.7, 1.6 * T, (Math.random() - 0.5) * 0.3]);
       for (let y = y0; y <= y1; y++) set(sx, y, 1);
-      set(sx, y0 + 1 + rnd(2), 0, ti + 1);
+      set(sx, top ? y0 + 2 + rnd(2) : y0 + rnd(2), 0, ti + 1); // puerta interna siempre en las filas libres
+      fill(x, sx - 1, by, dir, ra);
+      fill(sx + 1, x1, by, dir, rb);
       let dx;
       do dx = x + 1 + rnd(x1 - x - 1); while (dx == sx);
       set(dx, dr, 0, ti + 1);
-      furnish(x, y0, x1, y1, 6, [sx, dx]);
       const k = family ? 3 : ti == 7 ? 1 : 2 + rnd(3);
       for (let i = 0; i < k; i++) put(Math.random() < 0.6 ? pick(th[2]) : pick(COMMON), free(x, y0, x1, y1));
       if (family) { put('abuela', free(x, y0, x1, y1)); put('perro', free(x, y0, x1, y1)); }
@@ -229,7 +236,7 @@ function genFloor(f, extra) {
       x = x1 + 2;
     }
   }
-  return { g, d, items, labels, rugs };
+  return { g, d, items, labels, rugs, furn };
 }
 
 // Autocheck: las escaleras que corresponden existen, y cada objeto y escalera se alcanza.
@@ -261,14 +268,36 @@ function paint(g, rec) {
     }
   }
 }
-const FURN = [
-  'o -14 -13 28 27 643|o -11 -10 22 7 eee|o -11 -1 22 13 a44', // cama
-  'o -15 -6 30 14 549|o -15 -12 30 8 659|o -16 -9 6 17 435|o 10 -9 6 17 435', // sofá
-  'c 0 -13 4 532|c 0 13 4 532|c -13 0 4 532|c 13 0 4 532|c 0 0 10 a75|c -3 -2 2 eee|c 4 3 2 eee', // mesa con sillas
-  'o -10 -13 20 26 ddd|r -9 -1 18 1 99a|r 6 -10 2 6 99a', // refri
-  'c 0 0 9 742|c -4 -3 7 3a3|c 4 2 7 4a4|c 0 -5 6 373', // planta
-  'o -15 -4 30 7 222|o -13 -3 26 4 36d|o -4 3 8 4 222', // tele
-  'o -13 -9 26 18 864|r -11 -7 10 14 975|r 1 -7 10 14 975|c -2 0 1 321|c 3 0 1 321', // mueble
+// Muebles: [ancho, alto en casillas, receta centrada en px]. Se dibujan con el respaldo hacia la pared del fondo.
+const FURN = {
+  cama: [2, 2, 'o -30 -30 60 60 643|o -26 -27 24 14 eee|o 2 -27 24 14 eee|o -27 -10 54 38 a44|r -27 -10 54 6 c66'],
+  velador: [1, 1, 'o -12 -12 24 24 864|c 0 0 6 fe6'],
+  closet: [2, 1, 'o -31 -14 62 28 543|r -1 -13 2 26 321|c -6 0 2 ccc|c 6 0 2 ccc'],
+  sofa: [3, 1, 'o -47 -10 94 24 549|o -47 -15 94 9 659|o -48 -12 10 26 435|o 38 -12 10 26 435'],
+  tele: [2, 1, 'o -28 -12 56 8 222|o -25 -11 50 5 36d|o -8 -4 16 7 333'],
+  mesa: [2, 2, 'c 0 -24 7 532|c 0 24 7 532|c -24 0 7 532|c 24 0 7 532|o -19 -19 38 38 a75|c -7 0 4 eee|c 8 -4 4 eee'],
+  encimera: [3, 1, 'o -47 -15 94 30 ccd|o -40 -10 26 20 9ab|c 22 -6 5 333|c 34 6 5 333|c 10 6 5 333'],
+  refri: [1, 1, 'o -13 -15 26 30 ddd|r -12 0 24 1 99a|r 7 -11 2 7 99a'],
+  planta: [1, 1, 'c 0 0 11 742|c -4 -4 8 3a3|c 5 3 8 4a4|c 0 -6 7 373'],
+  escritorio: [2, 1, 'o -30 -15 60 22 555|o -14 -13 28 6 3cf|o -10 -5 20 4 222|c 0 11 6 c33'],
+  librero: [1, 1, 'o -14 -15 28 22 753|r -10 -13 4 18 c44|r -4 -13 4 18 48c|r 2 -13 4 18 cc4|r 8 -13 3 18 4a4'],
+  tina: [2, 2, 'o -28 -28 56 52 eef|o -22 -22 44 40 8cf'],
+  wc: [1, 1, 'o -8 -15 16 8 eef|e 0 2 16 20 eef'],
+  reposera: [1, 2, 'o -11 -30 22 60 fff|r -11 -24 22 6 e55|r -11 -8 22 6 e55|r -11 8 22 6 e55'],
+  piano: [2, 2, 'o -30 -28 60 56 111|r -27 14 54 12 fff|r -20 14 2 7 111|r -10 14 2 7 111|r 0 14 2 7 111|r 10 14 2 7 111|r 20 14 2 7 111'],
+  barra: [3, 1, 'o -47 -13 94 26 742|c -24 0 5 fd3|c 0 0 5 fd3|c 24 0 5 fd3'],
+};
+// Plantillas de pieza: muebles en orden contra la pared del fondo
+const ROOMS = {
+  cocina: ['encimera', 'refri', 'mesa', 'planta'], dorm: ['cama', 'velador', 'closet', 'planta'],
+  living: ['sofa', 'tele', 'librero', 'planta'], bano: ['tina', 'wc', 'planta'], gamer: ['escritorio', 'cama', 'librero'],
+  asado: ['barra', 'refri', 'mesa'], vacio: ['cama'], nada: [],
+};
+// Mansión del PH: [mueble, x, fila del respaldo, dirección]
+const PH = [
+  ['piano', 5, 1, 1], ['sofa', 9, 1, 1], ['librero', 13, 1, 1], ['planta', 14, 1, 1], ['barra', 36, 1, 1], ['refri', 40, 1, 1],
+  ['planta', 43, 1, 1], ['cama', 5, 13, -1], ['velador', 7, 13, -1], ['closet', 9, 13, -1], ['tina', 38, 13, -1], ['wc', 41, 13, -1],
+  ['reposera', 19, 4, 1], ['reposera', 20, 4, 1], ['reposera', 34, 4, 1], ['reposera', 35, 4, 1],
 ];
 const RUG = [0x8a3b3b, 0x3b5a8a, 0x8a7a3b, 0x3b7a5a, 0x6b3b8a];
 
@@ -289,15 +318,14 @@ function drawFloor(s, f, F) {
       c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
     }
   }
-  // alfombras giradas y muebles con un ángulo propio: rompen la grilla
+  // alfombras apenas giradas bajo las filas libres; muebles de plantilla con el respaldo a la pared
   for (const [x, y, w, h, a] of F.rugs) {
     gr.save().translateCanvas(x, y).rotateCanvas(a).fillStyle(RUG[(x + y) % 5], 0.85).fillRect(-w / 2, -h / 2, w, h);
     gr.lineStyle(2, 0xffffff, 0.3).strokeRect(-w / 2 + 4, -h / 2 + 4, w - 8, h - 8).restore();
   }
-  for (let i = 0; i < GW * GH; i++) {
-    if (F.g[i] != 4) continue;
-    gr.save().translateCanvas((i % GW) * T + T / 2, Math.floor(i / GW) * T + T / 2).rotateCanvas(((i * 37) % 9 - 4) * 0.12);
-    paint(gr, FURN[(i * 13 + f * 3) % FURN.length]);
+  for (const [k, x, y, dir] of F.furn) {
+    gr.save().translateCanvas(x, y).rotateCanvas(dir < 0 ? Math.PI : 0);
+    paint(gr, FURN[k][2]);
     gr.restore();
   }
   gr.generateTexture('f' + f, GW * T, GH * T);

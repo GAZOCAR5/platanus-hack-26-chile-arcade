@@ -50,7 +50,6 @@ Tierra caricaturesca partida en dos. "COMIENZA EL APOCALIPSIS". En 2P la pantall
 - Probabilidades cambian con el tiempo: réplicas decaen (Omori), saqueos suben días 2–5, enfermedad sube sin botiquín.
 - Desde el día 10 (`ENDING_DAY`): 10 % diario de **evento final** (decisión), más 5 % por cada vez que la radio da noticias. Éxito = ending con bonus. Fracaso = mueres o sigues sin bonus.
 - Puntaje: días × 100 + easter eggs + vivos + bonus de ending.
-- Resumen final: "te habría salvado: …".
 - Presupuesto de texto: ~30 eventos + 4 endings (~12 KB).
 
 ## Recursos y objetos
@@ -83,7 +82,7 @@ Espacios entre paréntesis. Efectos finos se ajustan en la etapa 3.
 | Peluca de Leo Rey | 1 | Te haces pasar por él: el campamento te regala cosas |
 | Terremoto (el trago) | 1 | Ánimo enorme, pero pierdes un día por la caña |
 | Volantín con hilo curado | 2 | Señal para el helicóptero (ending) |
-| Tarjeta Bip con saldo | 1 | Nada. "La micro no pasa más" |
+| Tarjeta Bip con saldo | 1 | Solo puntos. "La micro no pasa más" |
 | Billete de 20 lucas | 1 | Soborno que nadie acepta |
 | Moai de souvenir | 3 | Solo puntos (pesa) |
 | Completo a medio comer | 1 | +1 comida, 50 % intoxicación |

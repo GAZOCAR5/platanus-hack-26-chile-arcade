@@ -387,7 +387,7 @@ function icons(s) {
   if (s.textures.exists('halo')) return;
   for (const k in ITEMS) {
     const g = s.make.graphics({ add: false }).translateCanvas(16, 16);
-    g.fillStyle(0, 0.35).fillEllipse(3, 5, 24, 18); // sombra
+    g.fillStyle(0, 0.35).fillEllipse(0, 1, 26, 20); // sombra centrada: el ícono rota
     paint(g, ICON[k]);
     g.generateTexture('i' + k, 32, 32).destroy();
   }
@@ -454,7 +454,7 @@ function start(s, np) {
       .fillStyle(0xf0c8a8).fillCircle(1, 0, 8).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 8)
       .fillStyle(i ? 0x111111 : 0x5a3a1a).slice(0, 0, 8, Math.PI / 2, Math.PI * 1.5).fillPath()
       .fillStyle(0).fillCircle(6, -3, 1.5).fillCircle(6, 3, 1.5);
-    const o = s.add.container(0, 0, [s.add.ellipse(3, 4, 34, 32, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
+    const o = s.add.container(0, 0, [s.add.ellipse(0, 0, 36, 34, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {
       k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, hands,
@@ -697,55 +697,49 @@ const MILE = {
 //          +id gana, -id pierde, d un día de raciones extra, e acerca el rescate, r rescate, #x marca historia
 const EVENTS = [
   ['r', 'Réplica fuerte. El techo cruje y cae polvo.', '', [
-    ['Afirmar con cinta americana', 'cinta', 0.9, '', 'La cinta aguanta todo.', 'h', 'Se cae una viga encima de alguien.'],
-    ['Agacharse y cubrirse', '', 0.6, '', 'Pasó el susto.', 'h', 'Alguien se golpea la cabeza.'],
+    ['Afirmar con cinta', 'cinta', 0.9, '', 'La cinta aguanta todo.', 'h', 'Cae una viga.'],
+    ['Agacharse y cubrirse', '', 0.6, '', 'Pasó el susto.', 'h', 'Un golpe en la cabeza.'],
     ['Rezarle a San Expedito', '', 0.4, '', 'Funcionó, parece.', 'h', 'No funcionó.']]],
-  ['r', 'Réplica. Se rompe una cañería y entra agua turbia.', '', [
-    ['Hervirla con el encendedor', 'encendedor', 0.9, 'a+3', 'Agua hervida, sabor a cañería.', 's', 'Igual cayó mal.'],
+  ['r', 'Réplica. Se rompe una cañería: agua turbia.', '', [
+    ['Hervirla con el encendedor', 'encendedor', 0.9, 'a+3', 'Sabe a cañería, pero sirve.', 's', 'Igual cayó mal.'],
     ['Tomarla así no más', '', 0.4, 'a+3', 'Estómago de acero.', 'a+3 s', 'Alguien se enferma.'],
     ['Taparla con la frazada', 'frazada', 1, '', 'Bunker seco.', '', '']]],
-  ['r', 'Réplica pequeña. Se cae el estante de los tarros.', '', [
-    ['Atrapar los tarros', '', 0.5, '', '¡Atajada de arquero!', 'c-2', 'Se reventaron dos tarros.'],
-    ['Cubrirse', '', 1, 'c-1', 'Se perdió un tarro.', '', '']]],
   ['s', 'Saqueadores golpean la escotilla.', '#saq', [
     ['Salir con el uslero', 'uslero', 0.8, '', 'Huyeron del uslero de la abuela.', 'h', 'Eran más.'],
     ['Que ladre el quiltro', 'perro', 0.85, '', 'El quiltro los espantó.', 'c-3', 'Se llevaron comida.'],
     ['Pasarles comida', '', 1, 'c-3', 'Se fueron con tres raciones.', '', '']]],
-  ['s', 'Saqueadores ofrecen un trato: comida por algo brillante.', '', [
+  ['s', 'Saqueadores ofrecen comida por algo brillante.', '', [
     ['Darles la Gaviota del Festival', 'gaviota', 1, 'c+5 -gaviota', 'La gaviota vale más que el oro.', '', ''],
-    ['Ofrecer 20 lucas', 'lucas', 0.1, 'c+3 -lucas', 'Increíble, aceptaron.', '-lucas', 'Se rieron y se llevaron el billete.'],
+    ['Ofrecer 20 lucas', 'lucas', 0.1, 'c+3 -lucas', 'Increíble, aceptaron.', '-lucas', 'Se rieron y se lo llevaron.'],
     ['Rechazar', '', 1, '', 'Se van refunfuñando.', '', '']]],
   ['s', 'Un grupo pide refugio en el bunker.', '', [
-    ['Hacerte pasar por Leo Rey', 'peluca', 1, 'c+4 a+2', 'Te piden una foto y te regalan comida.', '', ''],
+    ['Hacerte pasar por Leo Rey', 'peluca', 1, 'c+4 a+2', 'Foto con Leo Rey a cambio de comida.', '', ''],
     ['Dejarlos entrar', '', 0.5, 'c+3 a+2', 'Traían provisiones.', 'c-3 a-3', 'Se comieron todo y se fueron.'],
-    ['Negarse', '', 1, '', 'Cierras la escotilla con culpa.', '', '']]],
-  ['s', 'De noche, alguien intenta forzar la escotilla.', '', [
+    ['Negarse', '', 1, '', 'Cierras con culpa.', '', '']]],
+  ['s', 'De noche intentan forzar la escotilla.', '', [
     ['Asomar el Moai', 'moai', 0.9, '', 'El Moai impone respeto.', '', ''],
     ['Hacerse el muerto', '', 0.6, '', 'Se aburrieron.', 'c-3 a-2', 'Entraron y robaron.'],
     ['Pelear', '', 0.5, '', 'Los echaste a escobazos.', 'h', 'Alguien sale herido.']]],
   ['m', 'Un perro callejero rasguña la puerta.', '', [
-    ['Darle de comer', '', 0.6, 'c-1 +radio', 'Vuelve al rato con una radio en el hocico.', 'c-1 h', 'Te muerde el tobillo.'],
+    ['Darle de comer', '', 0.6, 'c-1 +radio', 'Vuelve con una radio en el hocico.', 'c-1 h', 'Te muerde el tobillo.'],
     ['Adoptarlo', '', 0.7, '+perro c-1', 'Nuevo integrante del bunker.', 'h', 'No quería ser adoptado.'],
     ['Ignorarlo', '', 1, '', 'Se va llorando. Tú también.', '', '']]],
   ['m', 'Alguien amanece con fiebre.', 's', [
     ['Usar el botiquín', 'botiquin', 1, 'x', 'Paracetamol y a dormir.', '', ''],
     ['Darle pisco "medicinal"', 'pisco', 0.5, 'x -pisco', 'Santo remedio.', '-pisco', 'Ahora tiene fiebre y caña.'],
-    ['Esperar que se le pase', '', 0.3, 'x', 'Se le pasó.', '', 'Sigue mal.']]],
-  ['m', 'Alguien se tuerce el tobillo en los escombros.', 'h', [
+    ['Esperar', '', 0.3, 'x', 'Se le pasó.', '', 'Sigue mal.']]],
+  ['m', 'Alguien se tuerce un tobillo.', 'h', [
     ['Vendar con cinta', 'cinta', 0.9, 'x', 'Quedó como nuevo.', '', 'Quedó peor.'],
     ['Usar el botiquín', 'botiquin', 1, 'x', 'Vendaje profesional.', '', ''],
-    ['Aguantarse', '', 0.4, 'x', 'Era una torcedura leve.', '', 'Va a cojear un rato.']]],
-  ['m', 'Moho en las paredes. Todos tosen.', '', [
-    ['Ponerse la mascarilla', 'mascarilla', 0.9, '', 'Respiras tranquilo.', 's', 'Igual alguien se enferma.'],
-    ['Ventilar', '', 0.5, '', 'Entra aire (y ceniza).', 's', 'Alguien se enferma.']]],
+    ['Aguantarse', '', 0.4, 'x', 'Era leve.', '', 'Cojea.']]],
   ['m', 'Oscuridad total. No se ve nada.', '', [
     ['Prender la linterna', 'linterna+pilas', 1, '', 'Luz. Bendita luz.', '', ''],
     ['Cantar con la guitarra', 'guitarra', 1, 'x', 'Suena "Gracias a la vida". Se emocionan.', '', ''],
     ['Aguantar a ciegas', '', 0.5, '', 'Nadie se tropezó.', 'h', 'Alguien se tropieza.']]],
   ['m', 'Hay que salir a buscar provisiones.', '', [
     ['Ir con linterna', 'linterna+pilas', 0.8, 'c+3 a+2', 'Encuentras un almacén intacto.', 'h', 'Te cae un ladrillo.'],
-    ['Ir con el mapa', 'mapa', 0.7, 'c+2 a+3', 'Llegas a un supermercado saqueado a medias.', 'h', 'Te pierdes y vuelves herido.'],
-    ['Ir a ciegas', '', 0.4, 'c+2', 'Algo es algo.', 'h', 'Vuelves cojeando y sin nada.']]],
+    ['Ir con el mapa', 'mapa', 0.7, 'c+2 a+3', 'Un súper saqueado a medias.', 'h', 'Te pierdes y vuelves herido.'],
+    ['Ir a ciegas', '', 0.4, 'c+2', 'Algo es algo.', 'h', 'Vuelves cojeando.']]],
   ['m', 'Una lata y ningún abrelatas a mano.', '', [
     ['Abrirla con el cortaplumas', 'cortaplumas', 1, 'c+2', 'Click. Porotos.', '', ''],
     ['Usar el abrelatas', 'abrelatas', 1, 'c+2', 'Como la gente.', '', ''],
@@ -754,7 +748,7 @@ const EVENTS = [
     ['Juntar agua', '', 0.7, 'a+4', 'Agua gris, pero agua.', 'a+2 s', 'Alguien se enferma.'],
     ['Quedarse adentro', '', 1, '', 'Escuchas la lluvia.', '', '']]],
   ['m', 'Un caballo asustado pasa por la calle.', '', [
-    ['Montarlo con el sombrero de huaso', 'huaso', 0.8, 'c+4 a+2', 'Galopas hasta un fundo con provisiones.', 'h', 'El caballo no era de rodeo.'],
+    ['Montarlo con el sombrero de huaso', 'huaso', 0.8, 'c+4 a+2', 'Galopas a un fundo con comida.', 'h', 'El caballo no era de rodeo.'],
     ['Dejarlo ir', '', 1, '', 'Libre como el viento.', '', '']]],
   ['m', 'Un gato se cuela por una grieta.', '', [
     ['Adoptarlo', '', 0.8, '+gato', 'Ronronea. Sube el ánimo.', 'h', 'Te araña la cara.'],
@@ -764,61 +758,56 @@ const EVENTS = [
     ['Tomarse el terremoto', 'terremoto', 1, 'x d -terremoto', 'Lloran de risa. Al otro día, caña brutal.', '', ''],
     ['Asado imaginario', '', 1, '', 'Huele a nada, pero se agradece.', '', '']]],
   ['m', 'La radio podría tener señal.', '', [
-    ['Prender la radio', 'radio+pilas', 0.8, 'e #radio', 'Noticias: los rescates avanzan por la ciudad.', '', 'Solo estática.'],
-    ['Antena con cinta y frazada', 'cinta+frazada', 0.4, 'e', 'Se escucha algo. ¡Hay rescates!', '', 'No funcionó.'],
+    ['Prender la radio', 'radio+pilas', 0.8, 'e #radio', 'Los rescates avanzan por la ciudad.', '', 'Solo estática.'],
+    ['Antena hechiza', 'cinta+frazada', 0.4, 'e', '¡Hay rescates!', '', 'No funcionó.'],
     ['Dejarla', '', 1, '', 'Silencio.', '', '']]],
-  ['m', 'Alguien ronca demasiado fuerte.', '', [
-    ['Tirarle la tarjeta Bip', 'bip', 1, '', 'La Bip por fin sirvió para algo.', '', ''],
-    ['Aguantar', '', 1, '', 'Nadie duerme.', '', '']]],
-  ['m', 'Entre los escombros: ¡un cartón de lotería premiado!', '', [
-    ['Celebrar', '', 1, '', 'Ganaste 500 millones. No hay dónde cobrarlos.', '', '']]],
-  ['s', 'Saqueadores otra vez. Traen un megáfono: "¡Sabemos que están ahí!"', '', [
-    ['Asomar el Moai', 'moai', 0.9, '', 'Silencio. Después, pasos que se alejan.', 'c-2', 'No les importó el Moai.'],
+  ['s', 'Vuelven los saqueadores, con megáfono.', '', [
+    ['Asomar el Moai', 'moai', 0.9, '', 'Se alejan.', 'c-2', 'No les importó el Moai.'],
     ['Que ladre el quiltro', 'perro', 0.8, '', 'El quiltro suena como diez perros.', 'c-3', 'Le tiraron una salchicha. Traidor.'],
     ['Negociar por el ducto', '', 0.5, 'c-2', 'Se conforman con dos raciones.', 'c-4 a-2', 'Negociaste fatal.']], '#saq'],
-  ['m', 'Por el ducto grita el vecino del 7B: "¿Alguien ha visto a mi gato?"', '', [
-    ['Devolverle el gato', 'gato', 1, '-gato c+4', 'Te pasa cuatro tarros por el ducto. "¡Gracias, vecino!"', '', ''],
+  ['m', 'Por el ducto, el del 7B: "¿Han visto a mi gato?"', '', [
+    ['Devolverle el gato', 'gato', 1, '-gato c+4', 'Te pasa cuatro tarros. "¡Gracias!"', '', ''],
     ['Hacerse el leso', '', 0.6, '', 'Nadie dice nada. El gato tampoco.', '#venganza', 'El gato maúlla. El vecino jura venganza.']], 'gato'],
-  ['s', 'El vecino del 7B volvió con su cuñado: "Devuélvanme al Michi."', '', [
+  ['s', 'Vuelve el del 7B con su cuñado: "¡El Michi!"', '', [
     ['Devolverlo', 'gato', 1, '-gato', 'Lo abraza llorando. Se van en paz.', '', ''],
     ['Pagarle con comida', '', 1, 'c-3', 'Acepta tres tarros por el Michi.', '', ''],
     ['Pelear', '', 0.5, '', 'El cuñado era puro bulto.', 'h c-2', 'El cuñado no era puro bulto.']], '#venganza'],
-  ['s', 'Una carta por debajo de la escotilla: "Sé que tienen agua."', '', [
-    ['Dejar agua afuera', '', 1, 'a-2 #amigo', 'Al otro día hay una nota: "Gracias. Volveré."', '', ''],
+  ['s', 'Una carta bajo la escotilla: "Sé que tienen agua."', '', [
+    ['Dejar agua afuera', '', 1, 'a-2 #amigo', 'Una nota: "Gracias. Volveré."', '', ''],
     ['Ignorarla', '', 1, '#carta', 'Nadie duerme esa noche.', '', ''],
     ['Responder "NO"', '', 1, '#carta', 'Pasas la nota. Silencio.', '', '']]],
-  ['m', 'Golpecitos suaves. Es el de la carta: Don Pato, el conserje.', '', [
-    ['Dejarlo entrar', '', 1, '+pato c+3 +cortaplumas', 'Trae tres tarros, un cortaplumas y todos los chismes.', '', ''],
-    ['Solo darle las gracias', '', 1, 'x', 'Te devuelve el favor con un remedio casero.', '', '']], '#amigo'],
-  ['s', 'El de la carta volvió con amigos. Golpean fuerte.', '', [
+  ['m', 'Golpecitos: es Don Pato, el conserje, el de la carta.', '', [
+    ['Dejarlo entrar', '', 1, '+pato c+3 +cortaplumas', 'Trae tarros, un cortaplumas y chismes.', '', ''],
+    ['Solo darle las gracias', '', 1, 'x', 'Te deja un remedio casero.', '', '']], '#amigo'],
+  ['s', 'El de la carta volvió con amigos.', '', [
     ['Asomar el uslero', 'uslero', 0.8, '', 'El uslero de la abuela es leyenda.', 'h a-2', 'Eran muchos.'],
-    ['Darles agua', '', 1, 'a-4', 'Se llevan cuatro raciones y se van.', '', ''],
-    ['Atrincherarse', '', 0.4, '', 'Se rinden al amanecer.', 'a-3 h', 'Rompen la escotilla y se llevan agua.']], '#carta'],
-  ['m', 'Un influencer golpea la escotilla: está haciendo un live del apocalipsis.', '', [
-    ['Salir con la peluca de Leo Rey', 'peluca', 1, 'c+3 a+3 e', 'Se hace viral. Mandan ayuda al "bunker de Leo Rey".', '', ''],
-    ['Pedir ayuda en vivo', '', 0.5, 'c+2', 'Los seguidores mandan un dron con comida.', '', 'Solo le dieron likes.'],
+    ['Darles agua', '', 1, 'a-4', 'Se llevan cuatro raciones.', '', ''],
+    ['Atrincherarse', '', 0.4, '', 'Se rinden al amanecer.', 'a-3 h', 'Entran y se llevan agua.']], '#carta'],
+  ['m', 'Un influencer transmite un live del apocalipsis.', '', [
+    ['Salir con la peluca de Leo Rey', 'peluca', 1, 'c+3 a+3 e', 'Viral. Mandan ayuda al "bunker de Leo Rey".', '', ''],
+    ['Pedir ayuda en vivo', '', 0.5, 'c+2', 'Mandan un dron con comida.', '', 'Solo le dieron likes.'],
     ['Cerrarle la escotilla', '', 1, '', 'Se corta el live. Paz.', '', '']]],
-  ['m', 'La abuela dice que sabe hacer pan con casi nada.', '', [
-    ['Darle una ración de comida', '', 0.8, 'c-1 c+4', 'Pan amasado del apocalipsis. Huele a domingo.', 'c-1', 'Se quemó. La abuela culpa al horno.'],
-    ['Mejor no', '', 1, '', 'La abuela se ofende. Tres días sin hablarte.', '', '']], 'abuela'],
+  ['m', 'La abuela sabe hacer pan con casi nada.', '', [
+    ['Darle una ración de comida', '', 0.8, 'c-1 c+4', 'Pan amasado del apocalipsis. Huele a domingo.', 'c-1', 'Se quemó.'],
+    ['Mejor no', '', 1, '', 'La abuela no te habla en tres días.', '', '']], 'abuela'],
   ['m', 'El quiltro escarba como loco en una esquina.', '', [
-    ['Ayudarlo', '', 0.7, 'c+3', 'Un tarro de duraznos de los 80. Sigue bueno. Creo.', 'h', 'Era el nido de una rata. Muerde.'],
+    ['Ayudarlo', '', 0.7, 'c+3', 'Un tarro de duraznos de los 80. Sigue bueno. Creo.', 'h', 'Una rata. Muerde.'],
     ['Retarlo', '', 1, '', 'El quiltro te mira decepcionado.', '', '']], 'perro'],
   ['m', 'Alguien propone tomar once como la gente.', '', [
     ['Once con manjar', 'manjar', 1, 'x -manjar', 'Por un rato, todo es normal.', '', ''],
     ['Té de hojas secas', '', 1, 'a-1 x', 'Sabe a nada, pero reconforta.', '', ''],
     ['No hay ánimo', '', 1, '', 'Cada uno mira la pared.', '', '']]],
-  ['m', 'La vecina copuchenta sabe dónde se volcó un camión de ayuda.', '', [
+  ['m', 'La vecina sabe dónde se volcó un camión de ayuda.', '', [
     ['Ir con el mapa', 'mapa', 0.85, 'c+4 a+4', 'Era cierto. ¡Bendita copucha!', 'h', 'Era otro chisme.'],
-    ['Ir a ciegas', '', 0.45, 'c+3 a+2', 'Lo encontraste.', 'h', 'Vuelves herido y con las manos vacías.'],
+    ['Ir a ciegas', '', 0.45, 'c+3 a+2', 'Lo encontraste.', 'h', 'Vuelves herido.'],
     ['No creerle', '', 1, '', 'La vecina se ofende. Chisme nuevo: tú.', '', '']], 'vecina'],
-  ['m', 'Un dron de reparto aterriza perdido en la puerta.', '', [
+  ['m', 'Aterriza un dron de reparto perdido.', '', [
     ['Abrir el paquete', '', 0.6, '+botiquin', '¡Un botiquín! Gracias, algoritmo.', '', 'Era una funda de celular.'],
     ['Desarmarlo', '', 1, '+pilas', 'Pilas nuevas. Algo es algo.', '', '']]],
-  ['r', 'Réplica de madrugada. ¿Fue de 8? ¿De 9? Ya nadie sabe.', '', [
+  ['r', 'Réplica de madrugada. ¿8? ¿9? Ya nadie sabe.', '', [
     ['Sujetar el bidón', '', 0.6, '', 'Salvaste el agua.', 'a-3', 'El bidón se volcó.'],
     ['Proteger a los demás', '', 0.7, '', 'Nadie salió herido.', 'h', 'Te llevaste el golpe.']]],
-  ['m', 'La radio pasa un mensaje: "Rescates en plazas de Santiago".', '', [
+  ['m', 'Radio: "Rescates en plazas de Santiago".', '', [
     ['Marcar la plaza en el mapa', 'mapa', 1, 'e e', 'Plaza Ñuñoa. Está cerca.', '', ''],
     ['Memorizarla', '', 1, 'e', 'Repites "Plaza Ñuñoa" toda la noche.', '', '']], '#radio'],
 ];
@@ -866,7 +855,6 @@ function startLog(s) {
   st.next = 2;
   st.rows = [];
   st.pplT = [];
-  st.miss = {};
   st.ppl = st.P.filter((p) => p.alive).map((p) => person(st.P.length == 1 ? 'Tú' : p.k.slice(0, 2)));
   for (const it of st.bunker) {
     if (ITEMS[it.k][2] == 'p') st.ppl.push(person(ITEMS[it.k][0], it.k));
@@ -877,8 +865,6 @@ function startLog(s) {
     st.a += (WATER[k] || 0) * inv[k];
     if (FOOD[k] && (k in cook ? cook[k] : 1)) st.c += FOOD[k] * inv[k];
   }
-  if (inv.porotos && !cook.porotos) st.miss.Abrelatas = 1;
-  if (inv.tallarines && !cook.tallarines) st.miss['Balón de gas'] = 1;
   st.eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
 
   s.UL.add(s.add.rectangle(0, 0, W, H, 0x0b0b0e).setOrigin(0));
@@ -1011,7 +997,6 @@ function nextDay(s) {
   for (const p of alive(st)) {
     const me = p.n == 'Tú';
     if (p.th >= LIM.w || p.hu >= LIM.f) {
-      st.miss[p.th >= LIM.w ? 'Más agua' : 'Más comida'] = 1;
       p.st = 3;
       log(st, (me ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), '#ff4a4a');
     } else if (p.th == LIM.w - 1 || p.hu == LIM.f - 2) log(st, p.n + (me ? ' tienes' : ' tiene') + (p.th == LIM.w - 1 ? ' mucha sed.' : ' mucha hambre.'), '#ff9a3b');
@@ -1130,7 +1115,6 @@ function choose(s) {
   if (!has(st, o[1])) return tone(s, 140, 0.2, 'sawtooth', 0.2);
   const win = Math.random() < o[2], b = { a: st.a, c: st.c, ppl: st.ppl.map((p) => p.st), inv: { ...st.inv } };
   apply(st, win ? o[3] : o[5]);
-  if (!win || /[hsk]|-[ac]/.test(o[3])) for (const x of st.ev.opts) if (x[1] && !has(st, x[1])) st.miss[names(x[1])] = 1;
   const m = win ? o[4] : o[6] || o[4], d = diff(st, b);
   st.optT.forEach((t) => t.setText(''));
   st.sel.setVisible(false);
@@ -1207,14 +1191,13 @@ function gameOver(s, why) {
   st.over = 1;
   st.ev = null;
   st.score = st.day * 100 + st.eggs * 300 + n * 200 + (st.won ? 2000 : 0);
-  const miss = Object.keys(st.miss).slice(0, 4).join(', ');
   setTag(st, 'x');
   st.card.setVisible(true);
   st.sel.setVisible(false);
   st.cardT.setText(why);
   st.optT[0].setText('Días ' + st.day + '   ·   Vivos ' + n + '   ·   Easter eggs ' + st.eggs).setColor('#fff').setY(-30);
   st.optT[1].setText('PUNTAJE  ' + st.score).setColor('#ffd23b').setFontSize(26).setY(14);
-  st.optT[2].setText(miss ? 'Te habría salvado: ' + miss : '').setColor('#ff9a3b').setFontSize(16).setY(60);
+  st.optT[2].setText('');
   st.hint.setText('START para volver').setColor('#999');
   st.bar.width = 0;
   layoutLog(st);

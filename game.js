@@ -61,19 +61,19 @@ const LOOT = Object.keys(ITEMS).filter((k) => 'ach'.includes(ITEMS[k][2]));
 const COMMON = ['botella', 'lata', 'marraqueta', 'linterna', 'pilas'];
 // [nombre, color de piso, loot sesgado, plantilla de la pieza izquierda y derecha]
 const THEMES = [
-  ['Tu familia', 0x6b5a3c, ['bidon', 'lata', 'botiquin', 'frazada', 'abrelatas'], 'cocina dorm'],
-  ['Abuelita', 0x7a5a6a, ['lata', 'porotos', 'manjar', 'botiquin', 'frazada', 'naipe', 'uslero'], 'living dorm'],
-  ['Gamer', 0x3c3f6b, ['pilas', 'linterna', 'bebida', 'tallarines', 'cinta'], 'gamer living'],
-  ['Conserje', 0x5a5a4a, ['linterna', 'cinta', 'cortaplumas', 'gas', 'radio', 'abrelatas'], 'living bano'],
-  ['Estudiante', 0x4a6b5a, ['tallarines', 'bebida', 'pisco', 'encendedor', 'marraqueta'], 'gamer cocina'],
-  ['Doctora', 0x6b7a8a, ['botiquin', 'mascarilla', 'botella', 'bidon'], 'cocina bano'],
-  ['Tío del asado', 0x7a4a3c, ['charqui', 'encendedor', 'gas', 'pisco', 'marraqueta'], 'asado living'],
-  ['Airbnb vacío', 0x55555f, ['botella'], 'nada vacio'],
-  ['Hippie', 0x5a7a3c, ['guitarra', 'encendedor', 'porotos', 'botella', 'mapa'], 'living dorm'],
-  ['Deportista', 0x3c6b7a, ['botella', 'bidon', 'charqui', 'sopaipillas'], 'cocina dorm'],
+  ['Tu familia', 0xb06a32, ['bidon', 'lata', 'botiquin', 'frazada', 'abrelatas'], 'cocina dorm'],
+  ['Abuelita', 0xb0507a, ['lata', 'porotos', 'manjar', 'botiquin', 'frazada', 'naipe', 'uslero'], 'living dorm'],
+  ['Gamer', 0x4a4ad0, ['pilas', 'linterna', 'bebida', 'tallarines', 'cinta'], 'gamer living'],
+  ['Conserje', 0x7a8a3a, ['linterna', 'cinta', 'cortaplumas', 'gas', 'radio', 'abrelatas'], 'living bano'],
+  ['Estudiante', 0x2fa07a, ['tallarines', 'bebida', 'pisco', 'encendedor', 'marraqueta'], 'gamer cocina'],
+  ['Doctora', 0x5aa0c8, ['botiquin', 'mascarilla', 'botella', 'bidon'], 'cocina bano'],
+  ['Tío del asado', 0xc04a3a, ['charqui', 'encendedor', 'gas', 'pisco', 'marraqueta'], 'asado living'],
+  ['Airbnb vacío', 0x8a8aa0, ['botella'], 'nada vacio'],
+  ['Hippie', 0x7ab03a, ['guitarra', 'encendedor', 'porotos', 'botella', 'mapa'], 'living dorm'],
+  ['Deportista', 0x2a8ab0, ['botella', 'bidon', 'charqui', 'sopaipillas'], 'cocina dorm'],
 ];
 // color de piso por zona: 0 pasillo, 1..10 temas, 11 bunker, 12 PH
-const FC = [0x3a3a44, ...THEMES.map((t) => t[1]), 0x4a2a2a, 0x8a7440];
+const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x6a2a3a, 0xd0a030];
 const PC = [0xff6b4a, 0x9b7bff];
 const FAMILY_FLOOR = 3;
 
@@ -274,18 +274,19 @@ function reachableAll(F, f) {
 
 // Recetas de dibujo top-down: "cmd args col|...", coords desde el centro, color en hex corto (f80 = ff8800).
 // c x y r · e x y w h · r x y w h · o x y w h (redondeado) · t x1 y1 x2 y2 x3 y3 · l x1 y1 x2 y2 (línea) · R ángulo
-function paint(g, rec) {
+function paint(g, rec, ol) {
   for (const cmd of rec.split('|')) {
     const [k, ...a] = cmd.split(' '), n = a.map(Number), col = parseInt(a[a.length - 1].replace(/./g, '$&$&'), 16);
     if (k == 'R') g.rotateCanvas(n[0]);
     else if (k == 'l') g.lineStyle(2, col).lineBetween(n[0], n[1], n[2], n[3]);
     else {
       g.fillStyle(col);
-      if (k == 'c') g.fillCircle(n[0], n[1], n[2]);
-      if (k == 'e') g.fillEllipse(n[0], n[1], n[2], n[3]);
-      if (k == 'r') g.fillRect(n[0], n[1], n[2], n[3]);
-      if (k == 'o') g.fillRoundedRect(n[0], n[1], n[2], n[3], 3);
-      if (k == 't') g.fillTriangle(n[0], n[1], n[2], n[3], n[4], n[5]);
+      g.lineStyle(ol, 0, 0.85); // contorno negro: look de arcade
+      if (k == 'c') g.fillCircle(n[0], n[1], n[2]).strokeCircle(n[0], n[1], n[2]);
+      if (k == 'e') g.fillEllipse(n[0], n[1], n[2], n[3]).strokeEllipse(n[0], n[1], n[2], n[3]);
+      if (k == 'r') g.fillRect(n[0], n[1], n[2], n[3]).strokeRect(n[0], n[1], n[2], n[3]);
+      if (k == 'o') g.fillRoundedRect(n[0], n[1], n[2], n[3], 3).strokeRoundedRect(n[0], n[1], n[2], n[3], 3);
+      if (k == 't') g.fillTriangle(n[0], n[1], n[2], n[3], n[4], n[5]).strokeTriangle(n[0], n[1], n[2], n[3], n[4], n[5]);
     }
   }
 }
@@ -324,11 +325,11 @@ const RUG = [0x8a3b3b, 0x3b5a8a, 0x8a7a3b, 0x3b7a5a, 0x6b3b8a];
 
 function drawFloor(s, f, F) {
   const gr = s.make.graphics({ add: false });
-  gr.fillStyle(0x15151c).fillRect(0, 0, GW * T, GH * T);
+  gr.fillStyle(0x0e0b1e).fillRect(0, 0, GW * T, GH * T);
   for (let i = 0; i < GW * GH; i++) {
     const c = F.g[i], x = (i % GW) * T, y = Math.floor(i / GW) * T;
     if (c == 1) {
-      if (F.g[i + GW] != 1 && i + GW < GW * GH) gr.fillStyle(0x2e2e3c).fillRect(x, y + T - 9, T, 9); // cara de la pared
+      if (F.g[i + GW] != 1 && i + GW < GW * GH) gr.fillStyle(0x4a3f8a).fillRect(x, y + T - 9, T, 9).fillStyle(0x8a7fe0).fillRect(x, y + T - 9, T, 2); // cara de la pared con brillo
       continue;
     }
     gr.fillStyle(c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
@@ -348,7 +349,7 @@ function drawFloor(s, f, F) {
   for (const [k, x, y, dir] of F.furn) {
     gr.save().translateCanvas(x, y).rotateCanvas(dir < 0 ? Math.PI : 0);
     gr.fillStyle(0, 0.3).fillRoundedRect(4 - (FURN[k][0] * T) / 2, 5 - (FURN[k][1] * T) / 2, FURN[k][0] * T - 2, FURN[k][1] * T - 2, 6);
-    paint(gr, FURN[k][2]);
+    paint(gr, FURN[k][2], 2);
     gr.restore();
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
@@ -409,7 +410,7 @@ function icons(s) {
   for (const k in ITEMS) {
     const g = s.make.graphics({ add: false }).translateCanvas(16, 16);
     g.fillStyle(0, 0.35).fillEllipse(0, 1, 26, 20); // sombra centrada: el ícono rota
-    paint(g, ICON[k]);
+    paint(g, ICON[k], 1.2);
     g.generateTexture('i' + k, 32, 32).destroy();
   }
   // halo amarillo de "se puede recoger"
@@ -419,8 +420,8 @@ function icons(s) {
   g.fillStyle(0xffffff).fillRect(0, 0, 4, 4).generateTexture('px', 4, 4).destroy();
   // se cortó la luz: oscuridad con un círculo de luz al centro, que sigue a cada jugador
   const c = s.textures.createCanvas('dark', 1600, 1300), x = c.context, gr = x.createRadialGradient(800, 650, 70, 800, 650, 300);
-  gr.addColorStop(0, 'rgba(0,0,10,0)');
-  gr.addColorStop(1, 'rgba(0,0,10,.88)');
+  gr.addColorStop(0, 'rgba(20,0,40,0)');
+  gr.addColorStop(1, 'rgba(20,0,40,.8)');
   x.fillStyle = gr;
   x.fillRect(0, 0, 1600, 1300);
   c.refresh();
@@ -500,6 +501,7 @@ function start(s, np) {
   st.spark = s.add.particles(0, 0, 'px', { speed: { min: 40, max: 130 }, lifespan: 450, scale: { start: 1.2, end: 0 }, tint: 0xffd23b, emitting: false }).setDepth(4);
   s.WL.add([st.dust, st.spark]);
   st.hud = s.cameras.add(0, 0, W, H).ignore(s.WL);
+  s.UL.add(crt(s)); // líneas de monitor también en el saqueo
   st.left = LOOT_S;
   st.ni = st.sh = st.at = 0;
   st.ph = 'alert';

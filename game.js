@@ -312,6 +312,7 @@ function drawFloor(s, f, F) {
     }
     gr.fillStyle(c == 5 ? 0x2a7fd6 : FC[F.d[i]]).fillRect(x, y, T, T);
     if ((x + y) / T % 2) gr.fillStyle(0x000000, 0.07).fillRect(x, y, T, T);
+    if (F.d[i] && F.d[i] < 11) gr.fillStyle(0, 0.1).fillRect(x, y + 10, T, 1).fillRect(x, y + 21, T, 1); // tablas de madera
     if (c == 5) gr.fillStyle(0x7fc0ff, 0.6).fillRect(x + 4 + (i % 3) * 6, y + 6 + (i % 4) * 6, 12, 2);
     if (c == 2 || c == 3) {
       gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(0xffffff);
@@ -325,6 +326,7 @@ function drawFloor(s, f, F) {
   }
   for (const [k, x, y, dir] of F.furn) {
     gr.save().translateCanvas(x, y).rotateCanvas(dir < 0 ? Math.PI : 0);
+    gr.fillStyle(0, 0.3).fillRoundedRect(4 - (FURN[k][0] * T) / 2, 5 - (FURN[k][1] * T) / 2, FURN[k][0] * T - 2, FURN[k][1] * T - 2, 6);
     paint(gr, FURN[k][2]);
     gr.restore();
   }
@@ -385,13 +387,22 @@ function icons(s) {
   if (s.textures.exists('halo')) return;
   for (const k in ITEMS) {
     const g = s.make.graphics({ add: false }).translateCanvas(16, 16);
+    g.fillStyle(0, 0.35).fillEllipse(3, 5, 24, 18); // sombra
     paint(g, ICON[k]);
     g.generateTexture('i' + k, 32, 32).destroy();
   }
   // halo amarillo de "se puede recoger"
   const g = s.make.graphics({ add: false });
   for (let r = 19; r > 8; r -= 2) g.fillStyle(0xffd23b, 0.05).fillCircle(20, 20, r);
-  g.lineStyle(2, 0xffd23b, 0.9).strokeCircle(20, 20, 14).generateTexture('halo', 40, 40).destroy();
+  g.lineStyle(2, 0xffd23b, 0.9).strokeCircle(20, 20, 14).generateTexture('halo', 40, 40).clear();
+  g.fillStyle(0xffffff).fillRect(0, 0, 4, 4).generateTexture('px', 4, 4).destroy();
+  // se cortó la luz: oscuridad con un círculo de luz al centro, que sigue a cada jugador
+  const c = s.textures.createCanvas('dark', 1600, 1300), x = c.context, gr = x.createRadialGradient(800, 650, 70, 800, 650, 300);
+  gr.addColorStop(0, 'rgba(0,0,10,0)');
+  gr.addColorStop(1, 'rgba(0,0,10,.88)');
+  x.fillStyle = gr;
+  x.fillRect(0, 0, 1600, 1300);
+  c.refresh();
 }
 
 // ---------- partida ----------
@@ -412,8 +423,8 @@ function start(s, np) {
   st.items = st.floors.flatMap((F) => F.items);
   icons(s);
   for (const it of st.items) {
-    it.h = s.add.image(it.x, it.y + fy(it.f), 'halo');
-    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + it.k).setAngle(rnd(7) * 15 - 45); // cada objeto tirado en su ángulo
+    it.h = s.add.image(it.x, it.y + fy(it.f), 'halo').setDepth(4);
+    it.o = s.add.image(it.x, it.y + fy(it.f), 'i' + it.k).setAngle(rnd(7) * 15 - 45).setDepth(1); // cada objeto tirado en su ángulo
     if (ITEMS[it.k][2] == 'e') s.tweens.add({ targets: it.o, scale: 1.2, duration: 500, yoyo: true, repeat: -1 });
     s.WL.add([it.h, it.o]);
   }
@@ -443,21 +454,30 @@ function start(s, np) {
       .fillStyle(0xf0c8a8).fillCircle(1, 0, 8).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 8)
       .fillStyle(i ? 0x111111 : 0x5a3a1a).slice(0, 0, 8, Math.PI / 2, Math.PI * 1.5).fillPath()
       .fillStyle(0).fillCircle(6, -3, 1.5).fillCircle(6, 3, 1.5);
-    const o = s.add.container(0, 0, [bag, ...hands, body]).setRotation(Math.PI / 2);
+    const o = s.add.container(0, 0, [s.add.ellipse(3, 4, 34, 32, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {
       k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, hands,
       dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, 0xffffff),
-      lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa'),
+      lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa').setDepth(5),
+      dk: s.add.image(0, 0, 'dark').setDepth(3),
       bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor('#000000aa'),
     };
     s.WL.add([o, p.lt]);
     s.UL.add([p.dot, p.bt]);
     const cam = i ? s.cameras.add(vx, 0, vw, H) : s.cameras.main.setViewport(vx, 0, vw, H);
     cam.startFollow(o, true, 0.12, 0.12).ignore(s.UL);
+    s.WL.add(p.dk);
+    p.cam = cam;
     st.P.push(p);
   }
   if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, 0xffffff).setOrigin(0));
+  for (const p of st.P) for (const q of st.P) if (p != q) p.cam.ignore(q.dk); // cada cámara solo ve su propia oscuridad
+  // polvo que cae en los temblores (bajo la oscuridad) y chispas al tomar algo (sobre ella)
+  st.dust = s.add.particles(0, 0, 'px', { emitZone: { source: new Phaser.Geom.Rectangle(-320, -280, 640, 560) }, speedY: { min: 30, max: 90 },
+    lifespan: 1400, scale: { start: 1, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: 0xbbaa99, emitting: false }).setDepth(2.5);
+  st.spark = s.add.particles(0, 0, 'px', { speed: { min: 40, max: 130 }, lifespan: 450, scale: { start: 1.2, end: 0 }, tint: 0xffd23b, emitting: false }).setDepth(4);
+  s.WL.add([st.dust, st.spark]);
   st.hud = s.cameras.add(0, 0, W, H).ignore(s.WL);
   st.left = LOOT_S;
   st.ni = st.sh = st.at = 0;
@@ -558,7 +578,7 @@ function stepPlayer(s, p, t, dt) {
   const near = nearest(st, p, 30);
   if (pressed(s, p.k + '1') && near) {
     if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, 'sawtooth', 0.15); }
-    else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); p.bag.push(near); tone(s, 880, 0.08, 'triangle', 0.15); }
+    else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); st.spark.explode(14, near.o.x, near.o.y); p.bag.push(near); tone(s, 880, 0.08, 'triangle', 0.15); }
   }
   if (pressed(s, p.k + '2') && p.bag.length) {
     const it = p.bag.pop();
@@ -572,6 +592,8 @@ function stepPlayer(s, p, t, dt) {
   if (mv) p.o.rotation = Phaser.Math.Angle.RotateTo(p.o.rotation, Math.atan2(vy, vx), 0.25);
   const sw = mv ? Math.sin(t / 70) * 4 : 0, u = used(p), jit = scared ? Math.random() - 0.5 : 0; // con temblores, tiritan
   p.o.setPosition(p.x + jit, wy + jit);
+  // la linterna (con o sin pilas, para no castigar) agranda la luz; con temblores parpadea
+  p.dk.setPosition(p.x, wy).setScale(p.bag.some((it) => it.k == 'linterna') ? 1.6 : 1).setAlpha(scared ? 0.85 + Math.random() * 0.15 : 1);
   p.hands[0].x = 3 + sw;
   p.hands[1].x = 3 - sw;
   p.bg.setSize(8 + u, 18 + u * 1.5).setPosition(-12 - u / 2, 0);
@@ -1249,6 +1271,7 @@ function update(t, dt) {
       const k = (20 - st.left) / 20;
       st.sh = 1500 - 900 * k + rnd(600);
       s.cameras.cameras.forEach((c) => c != st.hud && c.shake(400, 0.003 + 0.012 * k));
+      for (const p of st.P) st.dust.explode(20 + 40 * k, p.x, p.y + fy(p.f));
       rumble(s, 0.6, 0.15 + 0.35 * k);
     }
     st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : '#ffd23b');

@@ -696,8 +696,8 @@ function earth(s) {
     }
     const g = s.add.graphics({ x: X, y: Y }).fillStyle(0x2a6fdb).fillPoints(pts, true).fillStyle(0x3bb36b);
     for (const [x, y, rr] of lands) g.fillCircle(sd * x, y, rr);
-    // borde de la grieta al rojo vivo
-    g.lineStyle(4, 0x000000).strokePoints(pts, true).lineStyle(3, 0xff6b1a).strokePoints(zig);
+    // atmósfera en el borde y, en la grieta, el corte: corteza café con magma encima
+    g.lineStyle(5, 0x8fd0ff).strokePoints(pts, true).lineStyle(16, 0x7a4a2a).strokePoints(zig).lineStyle(7, 0xff6b1a).strokePoints(zig);
     add(g, { x: X + sd * 165, angle: sd * 24, duration: 2400, ease: 'Expo.easeOut' });
   };
   half(-1, [[55, -30, 30], [40, 50, 18]]);
@@ -985,7 +985,7 @@ function stat(st) {
 }
 
 function hit(st, from, to) {
-  const c = st.ppl.filter((p) => p.st < 3 && (from < 0 ? true : p.st == from));
+  const c = st.ppl.filter((p) => p.st < 3 && (from < 0 || p.st == from));
   if (!c.length) return;
   const p = pick(c);
   p.st = to;
@@ -1420,8 +1420,8 @@ function pressed(scene, code) {
   return v;
 }
 
+// Mismo resultado que el del starter para toda tecla del gabinete; más corto para hacer espacio.
 function normalizeIncomingKey(key) {
-  if (typeof key !== 'string' || key.length === 0) return '';
-  return key === ' ' ? 'space' : key.toLowerCase();
+  return String(key).toLowerCase();
 }
 })();

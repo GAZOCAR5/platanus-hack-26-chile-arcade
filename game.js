@@ -73,7 +73,7 @@ const THEMES = [
   ['Deportista', 0x2a8ab0, ['botella', 'bidon', 'charqui', 'sopaipillas'], 'cocina dorm'],
 ];
 // color de piso por zona: 0 pasillo, 1..10 temas, 11 bunker, 12 PH
-const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x6a2a3a, 0xd0a030];
+const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x4a4f58, 0xd0a030]; // bunker de hormigón
 const PC = [0xff6b4a, 0x9b7bff];
 const FAMILY_FLOOR = 3;
 
@@ -209,9 +209,10 @@ function genFloor(f, extra) {
   };
 
   if (f == 0) {
-    open(1, 1, 22, 13, 11);
+    open(1, 1, 16, 13, 11);
     set(1, 6, 2);
-    for (const [k, x, y, dr] of [['librero', 4, 1, 1], ['librero', 5, 1, 1], ['encimera', 7, 1, 1], ['refri', 10, 1, 1], ['cama', 18, 13, -1], ['cama', 20, 13, -1], ['mesa', 10, 13, -1]]) place(k, x, y, dr);
+    for (const [k, x, y, dr] of [['estante', 3, 1, 1], ['estante', 5, 1, 1], ['tanque', 8, 1, 1], ['tanque', 9, 1, 1], ['generador', 13, 1, 1],
+      ['camarote', 3, 13, -1], ['camarote', 4, 13, -1], ['camarote', 6, 13, -1], ['mesa', 11, 13, -1], ['estante', 14, 13, -1]]) place(k, x, y, dr);
     labels.push([4, 3, 'BUNKER -3: aquí se vacía la mochila']);
     return { g, d, items, labels, rugs, furn };
   }
@@ -319,6 +320,10 @@ const FURN = {
   reposera: [1, 2, 'o -11 -30 22 60 fff|r -11 -24 22 6 e55|r -11 -8 22 6 e55|r -11 8 22 6 e55'],
   piano: [2, 2, 'o -30 -28 60 56 111|r -27 14 54 12 fff|r -20 14 2 7 111|r -10 14 2 7 111|r 0 14 2 7 111|r 10 14 2 7 111|r 20 14 2 7 111'],
   barra: [3, 1, 'o -47 -13 94 26 742|c -24 0 5 fd3|c 0 0 5 fd3|c 24 0 5 fd3'],
+  estante: [2, 1, 'o -30 -14 60 26 778|c -16 -2 6 f93|o 2 -9 8 14 39f|o 14 -9 8 14 39f'], // provisiones
+  tanque: [1, 1, 'c 0 0 13 789|c 0 0 8 9ab'], // agua
+  generador: [2, 1, 'o -30 -13 60 26 6a4|o -26 -9 20 18 333|c 12 0 8 333|c 12 0 3 fd3'],
+  camarote: [1, 2, 'o -13 -30 26 60 556|o -11 -27 22 24 a44|o -11 3 22 24 a44|o -9 -26 18 6 eee|o -9 4 18 6 eee'], // litera
 };
 // Plantillas de pieza: muebles en orden contra la pared del fondo
 const ROOMS = {
@@ -356,6 +361,10 @@ function drawFloor(s, f, F) {
     gr.fillStyle(0, 0.3).fillRoundedRect(4 - (FURN[k][0] * T) / 2, 5 - (FURN[k][1] * T) / 2, FURN[k][0] * T - 2, FURN[k][1] * T - 2, 6);
     paint(gr, FURN[k][2], 2);
     gr.restore();
+  }
+  if (!f) {
+    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? 0xffd23b : 0x111111).fillRect(2 * T, y, 8, 8); // franja de peligro
+    for (const x of [6, 11, 15]) gr.fillStyle(0xff3030).fillCircle(x * T, T - 5, 4).fillStyle(0xff3030, 0.2).fillCircle(x * T, T - 5, 12); // luces rojas
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
   gr.destroy();
@@ -534,10 +543,8 @@ const NOTIFS = [
   [56, 'Mamá', '¿Dónde estái? Contesta'],
   [50, 'Familia (47)', 'Tía Gloria: peor que el del 60'],
   [44, 'Conserje', 'NO usen el ascensor'],
-  [32, 'Banco', 'Tu cuota vence mañana igual'],
   [26, 'Vecino del 7B', '¿Alguien ha visto a mi gato?'],
   [20, 'ALERTA', 'Ondas sísmicas: 20 segundos'],
-  [14, 'Ex', 'oye... ¿estái bien?'],
   [9, 'Mamá', 'TE QUIERO. BAJA YA.'],
   [4, 'ALERTA', 'Agáchate, cúbrete y afírmate'],
 ];
@@ -717,8 +724,8 @@ const FLAVOR = [
 ];
 // frases que solo salen si tienes a alguien o algo
 const CTX = [
-  ['abuela', 'La abuela reza un rosario por cada réplica.'], ['abuela', 'La abuela jura que el del 60 fue peor.'],
-  ['perro', 'El quiltro duerme a tus pies.'], ['perro', 'El quiltro le ladra a la escotilla toda la noche.'],
+  ['abuela', 'La abuela jura que el del 60 fue peor.'],
+  ['perro', 'El quiltro le ladra a la escotilla toda la noche.'],
   ['gato', 'El gato ignora el apocalipsis con elegancia.'], ['vecina', 'La vecina ya sabe la vida de todos.'],
   ['pato', 'Don Pato sabe quién no paga gastos comunes.'],
   ['naipe', 'Carioca a la luz de la vela. Nadie baja la escala.'], ['radio', 'La radio da noticias entrecortadas.'],
@@ -826,10 +833,6 @@ const EVENTS = [
   ['m', 'El quiltro escarba como loco en una esquina.', '', [
     ['Ayudarlo', '', 0.7, 'c+3', 'Un tarro de duraznos de los 80. Sigue bueno. Creo.', 'h', 'Una rata. Muerde.'],
     ['Retarlo', '', 1, '', 'El quiltro te mira decepcionado.', '', '']], 'perro'],
-  ['m', 'Alguien propone tomar once como la gente.', '', [
-    ['Once con manjar', 'manjar', 1, 'x -manjar', 'Por un rato, todo es normal.', '', ''],
-    ['Té de hojas secas', '', 1, 'a-1 x', 'Sabe a nada, pero reconforta.', '', ''],
-    ['No hay ánimo', '', 1, '', 'Cada uno mira la pared.', '', '']]],
   ['m', 'La vecina sabe dónde se volcó un camión de ayuda.', '', [
     ['Ir con el mapa', 'mapa', 0.85, 'c+4 a+4', 'Era cierto. ¡Bendita copucha!', 'h', 'Era otro chisme.'],
     ['Ir a ciegas', '', 0.45, 'c+3 a+2', 'Lo encontraste.', 'h', 'Vuelves herido.'],

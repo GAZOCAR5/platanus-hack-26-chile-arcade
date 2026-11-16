@@ -793,6 +793,7 @@ function startLog(s) {
   log(st, 'Raciones: ' + st.a + ' de agua y ' + st.c + ' de comida.', '#ffd23b');
   st.lt = DAY_MS;
   if (!n) gameOver(s, 'El apocalipsis empezó sin ' + (st.P.length > 1 ? 'ustedes.' : 'ti.'));
+  else openRation(s, 'Primera noche. ¿Cómo se reparte?'); // antes de consumir nada
 }
 
 function log(st, m, col = '#cfcfe0') {
@@ -911,7 +912,9 @@ function nextDay(s) {
     return openCard(s, ev[1], ev[3], ev[0]);
   }
   const nw = ppl.filter((p) => p.w).length, nf = ppl.filter((p) => p.f).length;
-  if (st.day == 1) openRation(s, 'Primera noche. ¿Cómo se reparte?');
+  const weak = ppl.find((p) => (!p.w && p.th >= LIM.w - 2) || (!p.f && p.hu >= LIM.f - 3));
+  if (weak && st.day > st.lastR) openRation(s, weak.n + (weak.n == 'Tú' ? ' estás' : ' está') + ' muy débil. ¿Le das algo?');
+  else if (ppl.some((p) => !p.w || !p.f) && st.day - st.lastR >= 2) openRation(s, 'Hay gente racionada. ¿Siguen así?');
   else if ((st.a < nw || st.c < nf) && st.day - st.lastR >= 2) openRation(s, 'Mañana no alcanza para todos. ¿A quién le das?');
   else if (st.day - st.lastR >= 4) openRation(s, 'Revisar las raciones. Quedan ' + st.a + ' de agua y ' + st.c + ' de comida.');
 }

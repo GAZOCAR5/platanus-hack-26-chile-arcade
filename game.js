@@ -223,8 +223,19 @@ function genFloor(f, extra) {
   if (f == NF - 1) {
     open(4, 1, 48, 13, 12);
     open(2, 6, 4, 8, 12); // desde x=2: la columna 1 es la de las escaleras
-    for (let y = 4; y <= 10; y++) for (let x = 22; x <= 32; x++) set(x, y, 5);
-    for (const [k, x, y, dr] of PH) place(k, x, y, dr);
+    // tres zonas con muros y puertas al centro: living y comedor | terraza de la piscina | suite
+    open(21, 1, 33, 13, 10);
+    open(35, 1, 48, 13, 2);
+    for (let y = 1; y <= 13; y++) if (y < 6 || y > 8) set(20, y, 1), set(34, y, 1);
+    for (let y = 4; y <= 10; y++) for (let x = 23; x <= 31; x++) set(x, y, 5);
+    fill(5, 19, 1, 1, 'living');
+    place('piano', 13, 1, 1);
+    fill(5, 19, 13, -1, 'cocina');
+    fill(35, 47, 1, 1, 'dorm');
+    fill(35, 47, 13, -1, 'bano');
+    for (let x = 22; x < 32; x += 2) place('reposera', x, 1, 1);
+    place('barra', 25, 13, -1);
+    rugs.push([12 * T, 7.5 * T, 9 * T, 3 * T, 0.1], [41.5 * T, 7.5 * T, 7 * T, 3 * T, -0.1]);
     for (let i = 0; i < 3; i++) put(pick(EGGS), free(5, 2, 47, 12));
     for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
     labels.push([6, 2, 'PH · Mansión del cuico']);
@@ -315,12 +326,6 @@ const ROOMS = {
   living: ['sofa', 'tele', 'librero', 'planta'], bano: ['tina', 'wc', 'planta'], gamer: ['escritorio', 'cama', 'librero'],
   asado: ['barra', 'refri', 'mesa'], vacio: ['cama'], nada: [],
 };
-// Mansión del PH: [mueble, x, fila del respaldo, dirección]
-const PH = [
-  ['piano', 5, 1, 1], ['sofa', 9, 1, 1], ['librero', 13, 1, 1], ['planta', 14, 1, 1], ['barra', 36, 1, 1], ['refri', 40, 1, 1],
-  ['planta', 43, 1, 1], ['cama', 5, 13, -1], ['velador', 7, 13, -1], ['closet', 9, 13, -1], ['tina', 38, 13, -1], ['wc', 41, 13, -1],
-  ['reposera', 19, 4, 1], ['reposera', 20, 4, 1], ['reposera', 34, 4, 1], ['reposera', 35, 4, 1],
-];
 const RUG = [0x8a3b3b, 0x3b5a8a, 0x8a7a3b, 0x3b7a5a, 0x6b3b8a];
 
 function drawFloor(s, f, F) {

@@ -529,7 +529,6 @@ const NOTIFS = [
   [56, 'Mamá', '¿Dónde estái? Contesta'],
   [50, 'Familia (47)', 'Tía Gloria: peor que el del 60'],
   [44, 'Conserje', 'NO usen el ascensor'],
-  [38, 'App de autos', 'Tu viaje fue cancelado'],
   [32, 'Banco', 'Tu cuota vence mañana igual'],
   [26, 'Vecino del 7B', '¿Alguien ha visto a mi gato?'],
   [20, 'ALERTA', 'Ondas sísmicas: 20 segundos'],
@@ -706,7 +705,7 @@ function earth(s) {
 const WATER = { bidon: 12, botella: 3, bebida: 6 }; // raciones (1 persona, 1 día)
 const FOOD = { lata: 4, porotos: 4, tallarines: 5, marraqueta: 3, charqui: 6, manjar: 4, sopaipillas: 2, completo: 2 };
 const FLAVOR = [
-  'Afuera llueve ceniza.', 'Se escuchan perros a lo lejos.', 'Huele a humedad.', 'Día tranquilo. Demasiado tranquilo.',
+  'Afuera llueve ceniza.', 'Día tranquilo. Demasiado tranquilo.',
   'Contaron los tarros tres veces.', 'Sueñas con una sopaipilla pasada.', 'El techo cruje, pero aguanta.',
   'Discusión eterna: ¿completo o churrasco?',
   'Se juega al "veo veo". En la oscuridad.', 'Alguien cuenta las grietas del techo. Van 41.',
@@ -1335,11 +1334,14 @@ function tone(s, f, d, type, v, at = 0) {
   o.stop(t0 + d);
 }
 
-// Música 8-bit original. Cada carácter es una nota: semitonos desde La4 ('N' = 0); '.' es silencio.
+// Música 8-bit. Cada carácter es una nota: semitonos desde La4 ('N' = 0); '.' es silencio.
 // [segundos por paso, melodía, bajo, pasos por nota de bajo]
 const SONGS = [
-  [0.21, 'NQUSQPQ.NI..JNQPNMN.....UUSQSUVUSQ..SQPNPMN.....', '616129619429;166', 3], // tema: 6/8 con aire de cueca, La menor
-  [0.15, 'S.V.Z.V.U.X.].Z.', '/.;/./2.-.9-.-1.', 1], // saqueo: Re menor, tenso
+  // tema original, alegre y sincopado al estilo de los plataformeros 8-bit, Do mayor, con bajo que salta de octava
+  [0.13, '@.E.IG.E.B.EG...@.E.IL.IJ.IG.E..B.E.JI.G.E.BE...D.G.LJ.GE.......',
+    '9.E.9.E96.B.6.B69.E.9.E92.>.2.>22.>.2.>26.B.6.B64.@.4.@49.E.9.E9', 1],
+  // saqueo: Grieg, "En la gruta del rey de la montaña" (dominio público); se acelera con el reloj como la original
+  [0.16, 'DFGIKGK.JFJ.IEI.DFGIKGKPNKGKN...', '838383838383638.', 2],
 ];
 let MU = { k: -1 };
 const hz = (c) => 440 * 2 ** ((c.charCodeAt(0) - 78) / 12);
@@ -1352,8 +1354,8 @@ function music(s, k, sp) {
   MU.t = Math.max(MU.t, c.currentTime); // si la pestaña se durmió, no recuperar notas atrasadas
   while (MU.t < c.currentTime + 0.12) { // agenda un poco adelante: el ritmo no depende de los fps
     const at = MU.t - c.currentTime, m = mel[MU.i % mel.length], b = bas[(MU.i / ev | 0) % bas.length];
-    if (m != '.') tone(s, hz(m), d * sp * 0.9, 'square', 0.05, at);
-    if (MU.i % ev == 0 && b != '.') tone(s, hz(b), d * sp * ev * 0.9, 'triangle', 0.14, at);
+    if (m != '.') tone(s, hz(m), d * sp * 0.9, 'triangle', 0.16, at);
+    if (MU.i % ev == 0 && b != '.') tone(s, hz(b), d * sp * ev * 0.8, 'square', 0.04, at);
     MU.i++;
     MU.t += d * sp;
   }

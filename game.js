@@ -1,4 +1,4 @@
-// Terremoto — Platanus Hack 26 Santiago
+// ¡Agarra la tele! — Platanus Hack 26 Santiago
 // E1: saqueo top-down en un edificio generado. Ver docs/GAME_SPEC.md.
 
 // Todo va dentro de una función: así el minificador acorta también los nombres de nivel superior (~2 KB menos).
@@ -127,8 +127,8 @@ function create() {
   s.title = s.add.container(0, 0, [
     g,
     big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, '#2ec4a0', '#000').setOrigin(0.5),
-    big(s, W / 2, 112, 'TERREMOTO', 112, '#ffd23b').setOrigin(0.5),
-    txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con todo lo que puedas.', 16, '#d8d4ff')
+    big(s, W / 2, 112, '¡AGARRA LA TELE!', 84, '#ffd23b').setOrigin(0.5),
+    txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con lo que puedas.', 16, '#d8d4ff')
       .setOrigin(0.5).setAlign('center').setStroke('#000', 4),
     ...s.modeB,
     ...s.modeT,
@@ -213,7 +213,7 @@ function genFloor(f, extra) {
     set(1, 6, 2);
     for (const [k, x, y, dr] of [['estante', 3, 1, 1], ['estante', 5, 1, 1], ['tanque', 8, 1, 1], ['tanque', 9, 1, 1], ['generador', 13, 1, 1],
       ['camarote', 3, 13, -1], ['camarote', 4, 13, -1], ['camarote', 6, 13, -1], ['mesa', 11, 13, -1], ['estante', 14, 13, -1]]) place(k, x, y, dr);
-    labels.push([4, 3, 'BUNKER -3: aquí se vacía la mochila']);
+    labels.push([4, 3, 'BUNKER: aquí se vacía la mochila']);
     return { g, d, items, labels, rugs, furn };
   }
 

@@ -1,4 +1,4 @@
-# Terremoto — Especificación
+# ¡Agarra la tele! — Especificación
 
 Juego arcade para Platanus Hack 26 (Santiago). Phaser 3.87, todo en `game.js`, ≤ 50 KB minificado.
 Envío: 18 nov 2026, antes de las 20:00.

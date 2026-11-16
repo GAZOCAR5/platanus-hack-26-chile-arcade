@@ -473,9 +473,10 @@ function start(s, np) {
     const bag = s.add.rectangle(-12, 0, 8, 18, 0x7a4a2c).setStrokeStyle(2, 0x111111);
     const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).setStrokeStyle(1, 0x111111));
     const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, 0x111111).strokeEllipse(0, 0, 16, 28)
-      .fillStyle(0xf0c8a8).fillCircle(1, 0, 8).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 8)
-      .fillStyle(i ? 0x111111 : 0x5a3a1a).slice(0, 0, 8, Math.PI / 2, Math.PI * 1.5).fillPath()
-      .fillStyle(0).fillCircle(6, -3, 1.5).fillCircle(6, 3, 1.5);
+      // casco de obra visto desde arriba (P1 amarillo, P2 blanco): la visera apunta hacia donde mira
+      .fillStyle(0xf0c8a8).fillCircle(1, 0, 7).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 7)
+      .fillStyle(i ? 0xf2f2f2 : 0xffd23b).fillEllipse(4, 0, 18, 20).strokeEllipse(4, 0, 18, 20).fillCircle(-1, 0, 8.5).strokeCircle(-1, 0, 8.5)
+      .fillStyle(0, 0.25).fillRect(-9, -1, 17, 2).fillStyle(0xffffff, 0.5).fillEllipse(-3, -4, 6, 4);
     const o = s.add.container(0, 0, [s.add.ellipse(0, 0, 36, 34, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {

@@ -1,6 +1,8 @@
 // Terremoto — Platanus Hack 26 Santiago
 // E1: saqueo top-down en un edificio generado. Ver docs/GAME_SPEC.md.
 
+// Todo va dentro de una función: así el minificador acorta también los nombres de nivel superior (~2 KB menos).
+(() => {
 const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 14, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
 
 // DO NOT replace existing keys — they match the physical arcade cabinet wiring.
@@ -80,8 +82,15 @@ const pick = (a) => a[rnd(a.length)];
 const fy = (f) => (NF - 1 - f) * FG;
 const fl = (f) => (f == 0 ? '-3' : f == NF - 1 ? 'PH' : '' + f);
 const hy = (f) => 60 + (NF - 1 - f) * 38;
-const txt = (s, x, y, str, size, color) =>
-  s.add.text(x, y, str, { fontFamily: 'monospace', fontSize: size + 'px', color: color || '#fff' });
+const txt = (s, x, y, str, size, color, f) =>
+  s.add.text(x, y, str, { fontFamily: f || 'monospace', fontSize: size + 'px', color: color || '#fff' });
+// Letra de arcade: tipografía pesada con borde negro y sombra dura desplazada (sin fuentes externas: no se permiten URLs).
+const HF = 'Impact,"Arial Black",sans-serif';
+const big = (s, x, y, str, size, color, sh = '#d62828') =>
+  txt(s, x, y, str, size, color, HF).setStroke('#000', size / 7).setShadow(size / 16, size / 16, sh, 0, true, true);
+// Líneas de barrido de monitor CRT, encima de todo
+const crt = (s) => { const g = s.add.graphics().fillStyle(0, 0.22); for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1); return g; };
+const stars = (g, n, h) => { for (let i = 0; i < n; i++) g.fillStyle(0xffffff, Math.random() * 0.7).fillRect(rnd(W), rnd(h), 2, 2); return g; };
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -99,29 +108,41 @@ function create() {
   s.WL = s.add.layer();
   s.UL = s.add.layer();
   createControls(s);
-  const logo = txt(s, W / 2, 110, 'TERREMOTO', 84, '#ffd23b').setOrigin(0.5);
+  // Santiago de noche: cielo, estrellas y edificios con ventanas encendidas
+  const g = stars(s.add.graphics().fillGradientStyle(0x07061a, 0x07061a, 0x3a1030, 0x3a1030).fillRect(0, 0, W, H), 70, 380);
+  for (let x = 0; x < W; ) {
+    const w = 40 + rnd(50), h = 60 + rnd(130);
+    g.fillStyle(0x1a1433).fillRect(x, 556 - h, w - 4, h);
+    for (let wy = 566 - h; wy < 548; wy += 14) for (let wx = x + 6; wx < x + w - 14; wx += 12) rnd(3) || g.fillStyle(0xffd23b, 0.6).fillRect(wx, wy, 5, 7);
+    x += w;
+  }
+  g.fillStyle(0x050409).fillRect(0, 556, W, 44);
   // selector de modo: ←→ elige, B1 confirma; START1/START2 son atajos directos
   s.st.mi = 0;
-  s.modeB = [0, 1].map((i) => s.add.rectangle(W / 2 + (i ? 130 : -130), 258, 230, 64, 0x15151c).setStrokeStyle(3, 0x444455));
+  s.modeB = [0, 1].map((i) => s.add.rectangle(W / 2 + (i ? 130 : -130), 262, 230, 66));
   s.modeT = [0, 1].map((i) =>
-    txt(s, W / 2 + (i ? 130 : -130), 258, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START2' : 'START1'), 20).setOrigin(0.5).setAlign('center'));
-  const go = txt(s, W / 2, 304, '←→ elegir   B1 empezar', 14, '#2ec4a0').setOrigin(0.5);
-  s.rankT = [1, 2].map((n) => txt(s, n == 1 ? 120 : 460, 362, '', 16).setLineSpacing(6));
+    big(s, W / 2 + (i ? 130 : -130), 262, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START 2' : 'START 1'), 22, '#fff', '#000').setOrigin(0.5).setAlign('center'));
+  const go = big(s, W / 2, 322, '◄ ►  ELEGIR        B1  ¡A CORRER!', 20, '#fff', '#000').setOrigin(0.5);
+  s.rankT = [0, 1].map((i) => txt(s, 130 + i * 340, 364, '', 16, '#e8e6ff').setLineSpacing(6));
   s.title = s.add.container(0, 0, [
-    logo,
-    txt(s, W / 2, 182, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con todo lo que puedas.', 16, '#ccc')
-      .setOrigin(0.5).setAlign('center'),
+    g,
+    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, '#2ec4a0', '#000').setOrigin(0.5),
+    big(s, W / 2, 112, 'TERREMOTO', 112, '#ffd23b').setOrigin(0.5),
+    txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con todo lo que puedas.', 16, '#d8d4ff')
+      .setOrigin(0.5).setAlign('center').setStroke('#000', 4),
     ...s.modeB,
     ...s.modeT,
     go,
-    txt(s, 120, 334, 'RANKING 1P', 18, '#ffd23b'),
-    txt(s, 460, 334, 'RANKING 2P', 18, '#ffd23b'),
+    ...[0, 1].map((i) => s.add.rectangle(250 + i * 340, 412, 290, 124, 0, 0.7).setStrokeStyle(2, 0xffd23b)),
+    ...[0, 1].map((i) => big(s, 250 + i * 340, 350, 'RANKING ' + (i + 1) + 'P', 20, '#ffd23b').setOrigin(0.5)),
     ...s.rankT,
-    txt(s, W / 2, 566, 'Joystick: moverse   B1: tomar   B2: soltar   ·   Platanus Hack 26', 13, '#777').setOrigin(0.5),
+    txt(s, W / 2, 578, 'Joystick: moverse   B1: tomar   B2: soltar', 14, '#aaa').setOrigin(0.5),
+    crt(s),
   ]);
   s.UL.add(s.title);
-  s.tweens.add({ targets: logo, x: { from: W / 2 - 3, to: W / 2 + 3 }, duration: 60, yoyo: true, repeat: -1, repeatDelay: 1800 });
-  s.tweens.add({ targets: go, alpha: 0.3, duration: 600, yoyo: true, repeat: -1 });
+  // microsismo cada tanto: toda la pantalla tiembla
+  s.time.addEvent({ delay: 2200, loop: true, callback: () => s.st.ph == 'title' && s.cameras.main.shake(180, 0.006) });
+  s.tweens.add({ targets: go, alpha: 0.25, duration: 500, yoyo: true, repeat: -1 });
   drawMode(s);
   (RANK ? Promise.resolve(RANK) : loadRank()).then((r) => {
     RANK = r;
@@ -130,8 +151,8 @@ function create() {
 }
 
 function drawMode(s) {
-  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? 0x2c2c38 : 0x15151c).setStrokeStyle(3, i == s.st.mi ? 0xffd23b : 0x444455));
-  s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? '#ffd23b' : '#888'));
+  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? 0xd62828 : 0x15121f).setStrokeStyle(3, i == s.st.mi ? 0xffd23b : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
+  s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? '#fff' : '#6a6680'));
 }
 
 // ---------- ranking (platanusArcadeStorage, con localStorage de respaldo) ----------
@@ -608,9 +629,10 @@ function endLoot(s) {
   for (const p of st.P) if (p.f != 0) p.alive = 0;
   st.ph = 'cine';
   st.ct = 0;
-  st.mag = txt(s, W / 2, H / 2, '6.0', 120).setOrigin(0.5);
+  st.mag = big(s, W / 2, H / 2, '6.0', 130, '#fff').setOrigin(0.5);
+  st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, '#ff9a3b', '#000').setOrigin(0.5);
   // más grande que la pantalla: el shake no deja ver los bordes
-  st.cine = s.add.container(0, 0, [s.add.rectangle(-100, -100, W + 200, H + 200, 0x000000).setOrigin(0), st.mag]);
+  st.cine = s.add.container(0, 0, [s.add.rectangle(-100, -100, W + 200, H + 200, 0x000000).setOrigin(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
   s.UL.add(st.cine);
   rumble(s, 7, 0.7);
 }
@@ -619,7 +641,7 @@ function cine(s, dt) {
   const st = s.st, ct = (st.ct += dt);
   if (ct < 4500) {
     const v = 6 + 4 * (ct / 4500) ** 2;
-    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12);
+    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).setColor(v > 8 ? '#ff4a4a' : v > 7 ? '#ffd23b' : '#fff');
     st.hud.shake(100, 0.001 * (v - 5) ** 2);
   } else if (ct < 6000) {
     st.mag.setText(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').setColor('#ff4a4a');
@@ -629,38 +651,51 @@ function cine(s, dt) {
     st.hud.shake(100, 0.04);
   } else if (!st.earth) {
     st.mag.setVisible(false);
+    st.magL.setVisible(false);
     st.earth = 1;
     earth(s);
     rumble(s, 1, 1);
     tone(s, 55, 1.2, 'sawtooth', 0.5);
   }
   if (ct > 8800 && !st.apo) {
-    st.apo = txt(s, W / 2, 520, 'COMIENZA EL APOCALIPSIS', 40, '#ff6b4a').setOrigin(0.5).setAlpha(0);
+    st.apo = big(s, W / 2, 515, 'COMIENZA EL APOCALIPSIS', 46, '#ff6b4a', '#000').setOrigin(0.5).setAlpha(0);
     st.cine.add(st.apo);
-    s.tweens.add({ targets: st.apo, alpha: 1, duration: 800 });
+    s.tweens.add({ targets: st.apo, alpha: 1, scale: { from: 2.5, to: 1 }, duration: 500, ease: 'Back.easeOut', onComplete: () => st.hud.shake(250, 0.015) });
   }
   if (ct > 11500 || (ct > 1500 && (pressed(s, 'START1') || pressed(s, 'START2')))) startLog(s);
 }
 
 // Tierra caricaturesca partida en dos por una grieta en zigzag
 function earth(s) {
-  const r = 110, zig = [];
+  const r = 110, zig = [], X = W / 2, Y = 250, add = (o, tw) => (s.st.cine.add(o), s.tweens.add({ targets: o, ...tw }));
   for (let i = 0; i <= 8; i++) zig.push({ x: i % 8 ? (i % 2 ? 14 : -14) : 0, y: -r + (i * r) / 4 });
+  // núcleo de lava que late entre las dos mitades
+  const core = s.add.circle(X, Y, 72, 0xff6b1a).setStrokeStyle(10, 0xffd23b);
+  core.postFX?.addGlow(0xff4a1a, 8, 0, false, 0.1, 20); // halo suave (solo WebGL)
+  add(core, { scale: 0.88, duration: 300, yoyo: true, repeat: 9 });
   const half = (sd, lands) => {
     const pts = zig.map((p) => ({ ...p }));
     for (let i = 1; i < 24; i++) {
       const a = Math.PI / 2 - (i * Math.PI) / 24;
       pts.push({ x: sd * r * Math.cos(a), y: r * Math.sin(a) });
     }
-    const g = s.add.graphics({ x: W / 2, y: 250 }).fillStyle(0x2a6fdb).fillPoints(pts, true).fillStyle(0x3bb36b);
+    const g = s.add.graphics({ x: X, y: Y }).fillStyle(0x2a6fdb).fillPoints(pts, true).fillStyle(0x3bb36b);
     for (const [x, y, rr] of lands) g.fillCircle(sd * x, y, rr);
-    g.lineStyle(4, 0x000000).strokePoints(pts, true);
-    s.st.cine.add(g);
-    s.tweens.add({ targets: g, x: W / 2 + sd * 140, angle: sd * 18, duration: 1400, ease: 'Cubic.easeOut' });
+    // borde de la grieta al rojo vivo
+    g.lineStyle(4, 0x000000).strokePoints(pts, true).lineStyle(3, 0xff6b1a).strokePoints(zig);
+    add(g, { x: X + sd * 165, angle: sd * 24, duration: 2400, ease: 'Expo.easeOut' });
   };
-  s.st.cine.add(s.add.circle(W / 2, 250, 70, 0xff6b1a));
   half(-1, [[55, -30, 30], [40, 50, 18]]);
   half(1, [[50, -45, 26], [62, 38, 22], [30, 8, 12]]);
+  // escombros disparados en todas direcciones
+  for (let i = 0; i < 50; i++) {
+    const a = Math.random() * 7, d = 150 + rnd(400);
+    add(s.add.rectangle(X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, 0xffd23b])),
+      { x: X + Math.cos(a) * d, y: Y + Math.sin(a) * d, angle: rnd(900), alpha: 0, duration: 1500 + rnd(2000), ease: 'Cubic.easeOut' });
+  }
+  // dos ondas de choque y un destello blanco
+  for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).setStrokeStyle(8 - i * 4, i ? 0xffffff : 0xffd23b), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
+  add(s.add.rectangle(0, 0, W, H, 0xffffff).setOrigin(0), { alpha: 0, duration: 700 });
 }
 
 // ---------- E3: bitácora de días ----------
@@ -838,7 +873,8 @@ const LIM = { w: 5, f: 12 }; // días sin agua / sin comida antes de morir
 const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bonus de radio)
 
 const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
-const SC = ['#2ec4a0', '#ff9a3b', '#ffd23b', '#666', '#666']; // color por estado
+// Una sola escala en todo el panel: verde bien, amarillo atención, rojo crítico, gris ya no está
+const SEV = [0x2ec4a0, 0xffd23b, 0xff4a4a, 0x666666], hx = (n) => '#' + n.toString(16).padStart(6, '0');
 const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', 0xffd23b], x: ['FIN', 0x9b7bff] };
 const names = (req) => req.split('+').map((k) => ITEMS[k][0]).join(' + ');
 
@@ -867,36 +903,38 @@ function startLog(s) {
   }
   st.eggs = st.bunker.filter((it) => ITEMS[it.k][2] == 'e').length;
 
-  s.UL.add(s.add.rectangle(0, 0, W, H, 0x0b0b0e).setOrigin(0));
-  s.UL.add(txt(s, 24, 16, 'BITÁCORA DEL BUNKER', 22, '#ffd23b'));
+  // fondo y barra de título estilo marquesina
+  s.UL.add([s.add.graphics().fillStyle(0x0c0a16).fillRect(0, 0, W, H).fillStyle(0x1c1638).fillRect(0, 0, W, 48).fillStyle(0xffd23b).fillRect(0, 48, W, 3),
+    big(s, 20, 6, 'BITÁCORA DEL BUNKER', 28, '#ffd23b')]);
   st.logC = s.add.container();
   // panel derecho
   st.statC = s.add.container(0, 0, [
-    s.add.rectangle(516, 56, 268, 250, 0x15151c).setOrigin(0).setStrokeStyle(1, 0x2a2a36),
-    txt(s, 532, 66, 'AGUA', 13, '#3b9cff'),
-    txt(s, 652, 66, 'COMIDA', 13, '#ff9a3b'),
-    txt(s, 532, 116, 'PERSONA', 10, '#777'),
-    txt(s, 776, 116, 'RECIBE', 10, '#777').setOrigin(1, 0),
+    s.add.rectangle(516, 56, 268, 250, 0x15122a).setOrigin(0).setStrokeStyle(2, 0x3b9cff),
+    big(s, 532, 64, 'AGUA', 14, '#3b9cff', '#000'),
+    big(s, 652, 64, 'COMIDA', 14, '#ff9a3b', '#000'),
+    txt(s, 532, 136, 'PERSONA', 11, '#8a86a8'),
+    txt(s, 776, 136, 'RECIBE', 11, '#8a86a8').setOrigin(1, 0),
   ]);
-  st.dayT = txt(s, 776, 12, '', 30).setOrigin(1, 0);
-  st.aT = txt(s, 532, 82, '', 30, '#3b9cff');
-  st.cT = txt(s, 652, 82, '', 30, '#ff9a3b');
-  st.spT = [592, 712].map((x) => txt(s, x, 95, '', 12, '#9cc9ff')); // gasto diario según la regla de raciones
+  st.dayT = big(s, 780, 4, '', 32, '#fff').setOrigin(1, 0);
+  st.aT = big(s, 532, 80, '', 30, '#3b9cff', '#000');
+  st.cT = big(s, 652, 80, '', 30, '#ff9a3b', '#000');
+  st.spT = [532, 652].map((x) => txt(s, x, 112, '', 12)); // cuántos días alcanza con la regla de raciones actual
+  st.rbar = [532, 652].map((x) => s.add.rectangle(x, 129, 0, 4).setOrigin(0));
   st.toolT = txt(s, 532, 0, '', 13, '#999').setWordWrapWidth(236);
-  st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, st.toolT]);
+  st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, ...st.rbar, st.toolT]);
   // tarjeta de evento
   st.card = s.add.container(W / 2, 452).setVisible(false);
-  st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x1b1b22).setStrokeStyle(3, 0xffd23b);
-  st.tag = s.add.rectangle(-324, -126, 110, 24, 0xffd23b).setOrigin(0);
-  st.tagT = txt(s, -269, -114, '', 14, '#000').setOrigin(0.5);
+  st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x16131f).setStrokeStyle(3, 0xffd23b);
+  st.tag = s.add.rectangle(-324, -128, 110, 26, 0xffd23b).setOrigin(0);
+  st.tagT = txt(s, -269, -115, '', 17, '#000', HF).setOrigin(0.5);
   st.cardT = txt(s, -324, -90, '', 19).setWordWrapWidth(648);
   st.sel = s.add.rectangle(-330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, 0xffd23b);
   st.optT = [0, 1, 2].map(() => txt(s, -310, 0, '', 18).setOrigin(0, 0.5).setWordWrapWidth(620));
   st.hint = txt(s, -324, 104, '', 14, '#999');
   st.rT = [0, 1, 2, 3, 4, 5, 6].map((i) => txt(s, -310, -54 + i * 22, '', 16).setOrigin(0, 0.5));
   st.bar = s.add.rectangle(-330, 128, 660, 6, 0xffd23b).setOrigin(0, 0.5);
-  st.card.add([st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
-  s.UL.add([st.logC, st.statC, st.card]);
+  st.card.add([s.add.rectangle(8, 8, 680, 280, 0, 0.6), st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
+  s.UL.add([st.logC, st.statC, st.card, crt(s)]);
 
   const n = alive(st).length;
   log(st, !n ? 'Nadie llegó al bunker.' : n == 1 ? 'Se cierra la escotilla. Estás solo en el bunker.' : 'Se cierra la escotilla. Son ' + n + ' en el bunker.', '#ffd23b');
@@ -922,21 +960,29 @@ function layoutLog(st) {
   st.rows.forEach((r, i) => { r.y = y; y += r.height + 8; r.setAlpha(0.35 + (0.65 * (i + 1)) / st.rows.length); });
 }
 
+const sev = (p) => (p.st > 2 ? 3 : p.th >= LIM.w - 2 || p.hu >= LIM.f - 3 ? 2 : p.st || p.th || p.hu > 2 ? 1 : 0);
+
 function stat(st) {
-  const s = st.s;
+  const s = st.s, ppl = alive(st);
   st.dayT.setText('DÍA ' + st.day);
-  st.aT.setText(st.a);
-  st.cT.setText(st.c);
-  st.spT.forEach((t, i) => t.setText('-' + alive(st).filter((p) => (i ? p.f : p.w)).length + '/día'));
+  // agua y comida: color y barra según los días que alcanzan con la regla actual
+  [st.a, st.c].forEach((v, i) => {
+    const n = ppl.filter((p) => (i ? p.f : p.w)).length, d = n ? Math.floor(v / n) : 9, c = SEV[d > 3 ? 0 : d > 1 ? 1 : 2];
+    [st.aT, st.cT][i].setText(v).setColor(hx(c));
+    st.spT[i].setText(!n ? 'nadie recibe' : !d ? 'no alcanza' : d + (d == 1 ? ' día' : ' días')).setColor(hx(c));
+    st.rbar[i].setSize(Math.min(d, 7) * 14 + 2, 4).setFillStyle(c);
+  });
   st.pplT.forEach((t) => t.destroy());
-  st.pplT = st.ppl.map((p, i) =>
-    txt(s, 532, 130 + i * 20, p.n + ': ' + (p.st > 2 ? STATE[p.st] : [p.st && STATE[p.st], p.th && 'sed ' + p.th, p.hu > 2 && 'hambre ' + p.hu].filter(Boolean).join(' · ') || 'bien'),
-      12, p.st < 3 && (p.th >= LIM.w - 2 || p.hu >= LIM.f - 3) ? '#ff6b4a' : SC[p.st]));
+  st.pplT = st.ppl.flatMap((p, i) => [
+    s.add.circle(537, 159 + i * 20, 4, SEV[sev(p)]),
+    txt(s, 546, 152 + i * 20, p.n + ': ' + (p.st > 2 ? STATE[p.st] : [p.st && STATE[p.st], p.th && 'sed ' + p.th, p.hu > 2 && 'hambre ' + p.hu].filter(Boolean).join(' · ') || 'bien'),
+      12, hx(SEV[sev(p)])),
+  ]);
   // a la derecha de cada persona, qué le da la regla de raciones
-  st.pplT.push(...alive(st).map((p) => txt(s, 776, 130 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 14, mode(p) ? '#ff9a3b' : '#9cc9ff').setOrigin(1, 0)));
+  st.pplT.push(...ppl.map((p) => txt(s, 776, 152 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 13, mode(p) ? '#ff9a3b' : '#9cc9ff').setOrigin(1, 0)));
   st.statC.add(st.pplT);
   const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
-  st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(140 + st.ppl.length * 20);
+  st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(164 + st.ppl.length * 20);
 }
 
 function hit(st, from, to) {
@@ -1087,6 +1133,8 @@ function setTag(st, kind) {
   const [l, c] = KIND[kind];
   st.tag.setFillStyle(c);
   st.cardBg.setStrokeStyle(3, c);
+  st.sel.setFillStyle(c, 0.22).setStrokeStyle(2, c);
+  st.bar.setFillStyle(c);
   st.tagT.setText(l + (kind == 'x' ? '' : ' · DÍA ' + st.day));
   st.tag.width = l.length * 9 + (kind == 'x' ? 24 : 80);
   st.tagT.x = -324 + st.tag.width / 2;
@@ -1345,3 +1393,4 @@ function normalizeIncomingKey(key) {
   if (typeof key !== 'string' || key.length === 0) return '';
   return key === ' ' ? 'space' : key.toLowerCase();
 }
+})();

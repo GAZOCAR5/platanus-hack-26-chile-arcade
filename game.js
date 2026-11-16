@@ -867,6 +867,8 @@ function startLog(s) {
     s.add.rectangle(516, 56, 268, 250, 0x15151c).setOrigin(0).setStrokeStyle(1, 0x2a2a36),
     txt(s, 532, 66, 'AGUA', 13, '#3b9cff'),
     txt(s, 652, 66, 'COMIDA', 13, '#ff9a3b'),
+    txt(s, 532, 116, 'PERSONA', 10, '#777'),
+    txt(s, 776, 116, 'RECIBE', 10, '#777').setOrigin(1, 0),
   ]);
   st.dayT = txt(s, 776, 12, '', 30).setOrigin(1, 0);
   st.aT = txt(s, 532, 82, '', 30, '#3b9cff');
@@ -920,6 +922,8 @@ function stat(st) {
   st.pplT = st.ppl.map((p, i) =>
     txt(s, 532, 130 + i * 20, p.n + ': ' + STATE[p.st] + (p.st < 3 && p.th ? ' · sed ' + p.th : '') + (p.st < 3 && p.hu > 2 ? ' · hambre ' + p.hu : ''),
       14, p.st < 3 && (p.th >= LIM.w - 2 || p.hu >= LIM.f - 3) ? '#ff6b4a' : SC[p.st]));
+  // a la derecha de cada persona, qué le da la regla de raciones
+  st.pplT.push(...alive(st).map((p) => txt(s, 776, 130 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 14, mode(p) ? '#ff9a3b' : '#9cc9ff').setOrigin(1, 0)));
   st.statC.add(st.pplT);
   const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
   st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(140 + st.ppl.length * 20);
@@ -975,13 +979,13 @@ function flavor(st) {
 function nextDay(s) {
   const st = s.st;
   st.day++;
-  let short = 0;
+  let short = 0, ga = 0, gc = 0; // ga/gc: lo que se repartió hoy según la regla de raciones
   for (const p of alive(st)) {
-    if (p.w && st.a > 0) { st.a--; p.th = 0; } else { p.th++; short |= p.w; }
-    if (p.f && st.c > 0) { st.c--; p.hu = 0; } else { p.hu++; short |= p.f; }
+    if (p.w && st.a > 0) { st.a--; ga++; p.th = 0; } else { p.th++; short |= p.w; }
+    if (p.f && st.c > 0) { st.c--; gc++; p.hu = 0; } else { p.hu++; short |= p.f; }
   }
   const mile = MILE[st.day];
-  log(st, 'Día ' + st.day + ' · ' + (short ? 'No alcanzó para todos.' : mile || flavor(st)), short ? '#ff9a3b' : mile ? '#fff' : '#cfcfe0');
+  log(st, 'Día ' + st.day + ' · ' + ga + ' agua, ' + gc + ' comida · ' + (short ? 'No alcanzó para todos.' : mile || flavor(st)), short ? '#ff9a3b' : mile ? '#fff' : '#cfcfe0');
   for (const p of alive(st)) {
     const me = p.n == 'Tú';
     if (p.th >= LIM.w || p.hu >= LIM.f) {

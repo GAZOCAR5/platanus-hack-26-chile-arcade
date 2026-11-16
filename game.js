@@ -1,9 +1,10 @@
 
 (() => {
-const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 14, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
+const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 11, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
 const GOLD = 0xffd23b, GOLDS = '#ffd23b', SQ = 'square', TRI = 'triangle', WHITE = 0xffffff, WHT = '#fff', BLK = '#000', ORS = '#ff9a3b';
 const MRND = Math.random, MMAX = Math.max, MMIN = Math.min, MFLOOR = Math.floor, REDS = '#ff4a4a', TEALS = '#2ec4a0', GRAYS = '#999', INK = 0x111111, SAW = 'sawtooth', RED = 0xd62828, SHADE = '#000000aa';
 const rect = (s, ...a) => s.add.rectangle(...a);
+Object.assign(Phaser.GameObjects.GameObject.prototype, { o(x = 0.5, y = x) { return this.setOrigin(x, y); }, T(v) { return this.setText(v); }, V(v) { return this.setVisible(v); }, C(v) { return this.setColor(v); }, S(w, c) { return this.setStrokeStyle(w, c); } });
 
 const CABINET_KEYS = {
   P1_U: ['w'],
@@ -32,7 +33,7 @@ const CABINET_KEYS = {
 
 const KEYBOARD_TO_ARCADE = {};
 for (const [arcadeCode, keys] of Object.entries(CABINET_KEYS)) {
-  for (const key of keys) KEYBOARD_TO_ARCADE[normalizeIncomingKey(key)] = arcadeCode;
+  for (const key of keys) KEYBOARD_TO_ARCADE[key.toLowerCase()] = arcadeCode;
 }
 
 const ITEMS = {
@@ -72,11 +73,12 @@ const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x4a4f58, 0xd0a030];
 const PC = [0xff6b4a, 0x9b7bff];
 const FAMILY_FLOOR = 3;
 
+const any = (s, c) => pressed(s, 'P1_' + c) | pressed(s, 'P2_' + c), sp = (s) => pressed(s, 'START1') | pressed(s, 'START2');
 const rnd = (n) => MFLOOR(MRND() * n);
 const pick = (a) => a[rnd(a.length)];
 const fy = (f) => (NF - 1 - f) * FG;
 const fl = (f) => (f == 0 ? '-3' : f == NF - 1 ? 'PH' : '' + f);
-const hy = (f) => 60 + (NF - 1 - f) * 38;
+const hy = (f) => 60 + (NF - 1 - f) * 48;
 const txt = (s, x, y, str, size, color, f) =>
   s.add.text(x, y, str, { fontFamily: f || 'monospace', fontSize: size + 'px', color: color || WHT });
 const HF = 'Impact,"Arial Black",sans-serif';
@@ -112,22 +114,21 @@ function create() {
   s.st.mi = 0;
   s.modeB = [0, 1].map((i) => rect(s, W / 2 + (i ? 130 : -130), 262, 230, 66));
   s.modeT = [0, 1].map((i) =>
-    big(s, W / 2 + (i ? 130 : -130), 262, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START 2' : 'START 1'), 22, WHT, BLK).setOrigin(0.5).setAlign('center'));
-  const go = big(s, W / 2, 322, '◄ ►  ELEGIR        B1  ¡A CORRER!', 20, WHT, BLK).setOrigin(0.5);
+    big(s, W / 2 + (i ? 130 : -130), 262, (i ? '2 JUGADORES' : '1 JUGADOR') + '\nSTART', 22, WHT, BLK).o().setAlign('center'));
+  const go = big(s, W / 2, 322, '◄ ►  ELEGIR        B1  ¡A CORRER!', 20, WHT, BLK).o();
   s.rankT = [0, 1].map((i) => txt(s, 130 + i * 340, 364, '', 16, '#e8e6ff').setLineSpacing(6));
   s.title = s.add.container(0, 0, [
     g,
-    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, TEALS, BLK).setOrigin(0.5),
-    big(s, W / 2, 112, '¡AGARRA LA TELE!', 84, GOLDS).setOrigin(0.5),
-    txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con lo que puedas.', 16, '#d8d4ff')
-      .setOrigin(0.5).setAlign('center').setStroke(BLK, 4),
+    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, TEALS, BLK).o(),
+    big(s, W / 2, 112, '¡AGARRA LA TELE!', 84, GOLDS).o(),
+    txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.', 16, '#d8d4ff')
+      .o().setAlign('center').setStroke(BLK, 4),
     ...s.modeB,
     ...s.modeT,
     go,
-    ...[0, 1].map((i) => rect(s, 250 + i * 340, 412, 290, 124, 0, 0.7).setStrokeStyle(2, GOLD)),
-    ...[0, 1].map((i) => big(s, 250 + i * 340, 350, 'RANKING ' + (i + 1) + 'P', 20, GOLDS).setOrigin(0.5)),
+    ...[0, 1].map((i) => rect(s, 250 + i * 340, 412, 290, 124, 0, 0.7).S(2, GOLD)),
+    ...[0, 1].map((i) => big(s, 250 + i * 340, 350, 'RANKING ' + (i + 1) + 'P', 20, GOLDS).o()),
     ...s.rankT,
-    txt(s, W / 2, 578, 'Joystick: moverse   B1: tomar   B2: soltar', 14, '#aaa').setOrigin(0.5),
     crt(s),
   ]);
   s.UL.add(s.title);
@@ -136,13 +137,13 @@ function create() {
   drawMode(s);
   (RANK ? Promise.resolve(RANK) : loadRank()).then((r) => {
     RANK = r;
-    if (s.rankT[0].active) s.rankT.forEach((t, i) => t.setText(rankLines(RANK[i + 1])));
+    if (s.rankT[0].active) s.rankT.forEach((t, i) => t.T(rankLines(RANK[i + 1])));
   });
 }
 
 function drawMode(s) {
-  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? RED : 0x15121f).setStrokeStyle(3, i == s.st.mi ? GOLD : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
-  s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? WHT : '#6a6680'));
+  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? RED : 0x15121f).S(3, i == s.st.mi ? GOLD : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
+  s.modeT.forEach((t, i) => t.C(i == s.st.mi ? WHT : '#6a6680'));
 }
 
 
@@ -174,7 +175,7 @@ const qualifies = (np, sc) => sc > 0 && RANK && (RANK[np].length < RMAX || sc > 
 
 
 function genFloor(f, extra) {
-  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [], rugs = [], furn = [];
+  const g = new Uint8Array(GW * GH).fill(1), d = new Uint8Array(GW * GH), items = [], labels = [], rugs = [], furn = [], F = { g, d, items, labels, rugs, furn };
   const set = (x, y, v, t) => { g[y * GW + x] = v; if (t !== undefined) d[y * GW + x] = t; };
   const open = (x0, y0, x1, y1, t) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, 0, t); };
   const put = (k, xy) => xy && items.push({ k, f, x: xy[0] * T + T / 2, y: xy[1] * T + T / 2 });
@@ -199,7 +200,7 @@ function genFloor(f, extra) {
     for (const [k, x, y, dr] of [['estante', 3, 1, 1], ['estante', 5, 1, 1], ['tanque', 8, 1, 1], ['tanque', 9, 1, 1], ['generador', 13, 1, 1],
       ['camarote', 3, 13, -1], ['camarote', 4, 13, -1], ['camarote', 6, 13, -1], ['mesa', 11, 13, -1], ['estante', 14, 13, -1]]) place(k, x, y, dr);
     labels.push([4, 3, 'BUNKER: aquí se vacía la mochila']);
-    return { g, d, items, labels, rugs, furn };
+    return F;
   }
 
   open(1, 6, 48, 8, 0);
@@ -224,7 +225,7 @@ function genFloor(f, extra) {
     for (let i = 0; i < 6; i++) put(pick(EGGS), free(5, 2, 47, 12));
     for (let i = 0; i < 6; i++) put(pick(LOOT), free(5, 2, 47, 12));
     labels.push([6, 2, 'PH · Mansión del cuico']);
-    return { g, d, items, labels, rugs, furn };
+    return F;
   }
 
   let n = 0;
@@ -253,7 +254,7 @@ function genFloor(f, extra) {
       x = x1 + 2;
     }
   }
-  return { g, d, items, labels, rugs, furn };
+  return F;
 }
 
 function reachableAll(F, f) {
@@ -327,7 +328,8 @@ function drawFloor(s, f, F) {
     if (c == 5) gr.fillStyle(0x7fc0ff, 0.6).fillRect(x + 4 + (i % 3) * 6, y + 6 + (i % 4) * 6, 12, 2);
     if (c == 2 || c == 3) {
       gr.fillStyle(0x777788).fillRect(x + 2, y + 2, T - 4, T - 4).fillStyle(WHITE);
-      c == 2 ? gr.fillTriangle(x + 16, y + 6, x + 6, y + 26, x + 26, y + 26) : gr.fillTriangle(x + 16, y + 26, x + 6, y + 6, x + 26, y + 6);
+      const a = c == 2 ? 6 : 26;
+      gr.fillTriangle(x + 16, y + a, x + 6, y + 32 - a, x + 26, y + 32 - a);
     }
   }
   for (const [x, y, w, h, a] of F.rugs) {
@@ -346,7 +348,7 @@ function drawFloor(s, f, F) {
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
   gr.destroy();
-  s.WL.add(s.add.image(0, fy(f), 'f' + f).setOrigin(0));
+  s.WL.add(s.add.image(0, fy(f), 'f' + f).o(0));
   for (const [x, y, l] of F.labels) s.WL.add(txt(s, x * T, fy(f) + y * T + 8, l, 11, '#ffffffaa'));
 }
 
@@ -419,10 +421,10 @@ function icons(s) {
 
 function start(s, np) {
   const st = s.st;
-  s.title.setVisible(false);
+  s.title.V(false);
   const extra = {};
-  (extra[2 + rnd(9)] ||= []).push('gato');
-  (extra[2 + rnd(9)] ||= []).push('vecina');
+  (extra[2 + rnd(NF - 3)] ||= []).push('gato');
+  (extra[2 + rnd(NF - 3)] ||= []).push('vecina');
   st.floors = [];
   for (let f = 0; f < NF; f++) {
     let F;
@@ -440,15 +442,15 @@ function start(s, np) {
   }
   s.tweens.add({ targets: st.items.map((it) => it.h), alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
-  s.UL.add(rect(s, 720, 0, 80, H, 0x0d0d12).setOrigin(0));
-  st.timer = txt(s, 760, 8, '60', 30, GOLDS).setOrigin(0.5, 0);
+  s.UL.add(rect(s, 720, 0, 80, H, 0x0d0d12).o(0));
+  st.timer = txt(s, 760, 8, '60', 30, GOLDS).o(0.5, 0);
   s.UL.add(st.timer);
   for (let f = 0; f < NF; f++) {
-    s.UL.add(rect(s, 724, hy(f), 72, 34, f == 0 ? 0x6b1d1d : f == NF - 1 ? 0x8a6d1a : 0x2a2a36).setOrigin(0));
+    s.UL.add(rect(s, 724, hy(f), 72, 40, f == 0 ? 0x6b1d1d : f == NF - 1 ? 0x8a6d1a : 0x2a2a36).o(0));
     s.UL.add(txt(s, 727, hy(f) + 2, fl(f), 10, '#ffffff88'));
   }
   st.bunker = [];
-  st.msg = txt(s, 360, 92, '', 16, GOLDS).setOrigin(0.5).setBackgroundColor(SHADE);
+  st.msg = txt(s, 360, 92, '', 16, GOLDS).o().setBackgroundColor(SHADE);
   s.UL.add(st.msg);
 
   const F3 = st.floors[FAMILY_FLOOR];
@@ -456,8 +458,8 @@ function start(s, np) {
   for (let i = 0; i < np; i++) {
     let x, y;
     do { x = 6 + rnd(6); y = 2 + rnd(2); } while (F3.g[y * GW + x] != 0);
-    const bag = rect(s, -12, 0, 8, 18, 0x7a4a2c).setStrokeStyle(2, INK);
-    const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).setStrokeStyle(1, INK));
+    const bag = rect(s, -12, 0, 8, 18, 0x7a4a2c).S(2, INK);
+    const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).S(1, INK));
     const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, INK).strokeEllipse(0, 0, 16, 28)
       .fillStyle(0xf0c8a8).fillCircle(1, 0, 7).lineStyle(1.5, INK).strokeCircle(1, 0, 7)
       .fillStyle(i ? 0xf2f2f2 : GOLD).fillEllipse(4, 0, 18, 20).strokeEllipse(4, 0, 18, 20).fillCircle(-1, 0, 8.5).strokeCircle(-1, 0, 8.5)
@@ -465,9 +467,9 @@ function start(s, np) {
     const o = s.add.container(0, 0, [s.add.ellipse(0, 0, 36, 34, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
     const vx = np == 1 ? 0 : i * 362, vw = np == 1 ? 720 : 358;
     const p = {
-      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, hands,
-      dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, WHITE),
-      lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor(SHADE).setDepth(5),
+      k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, da: 0, cd: 0, o, bg: bag, hands,
+      dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).S(2, WHITE),
+      lt: txt(s, 0, 0, '', 12).o(0.5, 1).setBackgroundColor(SHADE).setDepth(5),
       dk: s.add.image(0, 0, 'dark').setDepth(3),
       bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor(SHADE),
     };
@@ -479,7 +481,7 @@ function start(s, np) {
     p.cam = cam;
     st.P.push(p);
   }
-  if (np == 2) s.UL.add(rect(s, 358, 0, 4, H, WHITE).setOrigin(0));
+  if (np == 2) s.UL.add(rect(s, 358, 0, 4, H, WHITE).o(0));
   for (const p of st.P) for (const q of st.P) if (p != q) p.cam.ignore(q.dk);
   st.dust = s.add.particles(0, 0, 'px', { emitZone: { source: new Phaser.Geom.Rectangle(-320, -280, 640, 560) }, speedY: { min: 30, max: 90 },
     lifespan: 1400, scale: { start: 1, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: 0xbbaa99, emitting: false }).setDepth(2.5);
@@ -490,25 +492,45 @@ function start(s, np) {
   st.left = LOOT_S;
   st.ni = st.sh = st.at = 0;
   st.ph = 'alert';
-  const ph = s.add.graphics().fillStyle(0x000000, 0.85).fillRect(0, 0, W, H)
-    .fillStyle(0x1b1b22).fillRoundedRect(250, 60, 300, 480, 36)
-    .fillStyle(0x0a0a0f).fillRoundedRect(262, 72, 276, 456, 26)
-    .fillStyle(RED).fillRoundedRect(276, 180, 248, 210, 14);
-  st.alert = s.add.container(0, 0, [
-    ph,
-    txt(s, 400, 120, '03:34', 44).setOrigin(0.5),
-    txt(s, 292, 194, '!! ALERTA DE EMERGENCIA', 15, GOLDS),
-    txt(s, 292, 228, 'Megaterremoto inminente en Santiago. Baja al bunker -3 con todo lo que puedas.\n\nTienes 60 segundos.', 15)
-      .setWordWrapWidth(216),
-    txt(s, 400, 500, 'B1 o START para correr', 13, '#aaa').setOrigin(0.5),
-  ]);
+  const g = s.add.graphics().fillStyle(0, 0.93).fillRect(0, 0, W, H)
+    .fillStyle(0x2a2a33).fillRoundedRect(40, 40, 260, 520, 40).lineStyle(3, 0x6a6a80).strokeRoundedRect(40, 40, 260, 520, 40)
+    .fillStyle(0x0b0b16).fillRoundedRect(50, 50, 240, 500, 32)
+    .fillStyle(0).fillRoundedRect(135, 60, 70, 20, 10)
+    .fillStyle(WHITE, 0.8).fillRoundedRect(120, 534, 100, 5, 3)
+    .fillStyle(0xf2f2f7, 0.92).fillRoundedRect(60, 392, 220, 56, 14)
+    .lineStyle(1.5, WHITE).strokeRoundedRect(238, 64, 22, 11, 3).fillStyle(RED).fillRect(240, 66, 4, 7);
+  const card = s.add.graphics().fillStyle(RED).fillRoundedRect(60, 180, 220, 200, 18).fillStyle(GOLD).fillTriangle(82, 192, 72, 210, 92, 210);
+  const go = txt(s, 550, 552, 'B1 o START: ¡A CORRER!', 18, GOLDS).o();
+  s.tweens.add({ targets: [card, go], alpha: 0.6, duration: 450, yoyo: true, repeat: -1 });
+  const a = [g, card, go, txt(s, 66, 63, 'SOS', 11, GOLDS), txt(s, 170, 92, '03:34', 60).o(0.5, 0),
+    txt(s, 100, 195, 'ALERTA DE EMERGENCIA', 12, GOLDS),
+    txt(s, 74, 226, 'Megaterremoto inminente en Santiago. Baja al búnker -3 con todo lo que puedas.', 15).setWordWrapWidth(196),
+    big(s, 170, 352, 'TIENES 60 SEGUNDOS', 20, GOLDS, BLK).o(),
+    txt(s, 74, 401, 'Mamá', 12, '#d62828'), txt(s, 74, 420, '¿Dónde estái? Contesta', 13, '#111'),
+    big(s, 550, 40, '¿CÓMO SE JUEGA?', 30, WHT).o(0.5, 0)];
+  [[GOLD, 'AGARRA TODO', '*B1* toma, *B2* suelta, *B3* dash (peso < 3).\n*Agua*, *comida*, *herramientas*... ¡y *gente*!\nCada cosa *pesa [n]*: en la mochila caben *6*.'],
+    [0xff9a3b, 'BAJA AL BÚNKER -3', 'Por las *escaleras*. Ahí la mochila se\n*vacía sola*. Haz *varios viajes*.'],
+    [0xff4a4a, 'ANTES DE 60 SEGUNDOS', 'Si el terremoto te pilla *fuera del búnker*,\n*no la cuentas*.'],
+    [0x2ec4a0, 'SOBREVIVE', 'Reparte *agua y comida*, usa lo que trajiste\ny aguanta hasta el *rescate*.'],
+  ].forEach(([c, t, d], i) => {
+    const y = 104 + i * 104;
+    g.lineStyle(4, c, 0.5).lineBetween(360, y, 360, i < 3 ? y + 104 : y).fillStyle(c).fillCircle(360, y + 14, 20);
+    a.push(txt(s, 360, y + 15, i + 1, 24, BLK, HF).o(), big(s, 394, y, t, 22, hx(c), BLK));
+    d.split('\n').forEach((l, j) => {
+      let x = 394;
+      l.split('*').forEach((p, k) => {
+        const w = txt(s, x, y + 32 + j * 19, p, 14, k % 2 ? hx(c) : '#ddd').setFontStyle(k % 2 ? 'bold' : '');
+        x += w.width;
+        a.push(w);
+      });
+    });
+  });
+  st.alert = s.add.container(0, 0, a);
   s.UL.add(st.alert);
-  s.tweens.add({ targets: st.alert, x: { from: -4, to: 4 }, duration: 50, yoyo: true, repeat: 20 });
   alarm(s);
 }
 
 const NOTIFS = [
-  [56, 'Mamá', '¿Dónde estái? Contesta'],
   [50, 'Familia (47)', 'Tía Gloria: peor que el del 60'],
   [44, 'Conserje', 'NO usen el ascensor'],
   [26, 'Vecino del 7B', '¿Alguien ha visto a mi gato?'],
@@ -520,7 +542,7 @@ const NOTIFS = [
 function notify(s, from, m) {
   const red = from == 'ALERTA';
   const c = s.add.container(360, -40, [
-    rect(s, 0, 0, 440, 52, red ? RED : 0xf2f2f7).setStrokeStyle(2, 0x000000),
+    rect(s, 0, 0, 440, 52, red ? RED : 0xf2f2f7).S(2, 0x000000),
     txt(s, -208, -21, from, 13, red ? GOLDS : '#d62828'),
     txt(s, -208, -3, m, 15, red ? WHT : '#111'),
   ]);
@@ -550,16 +572,13 @@ function nearest(st, p, r) {
   return best;
 }
 
-function say(st, m) {
-  st.msg.setText(m);
-  st.msgT = 1500;
-}
-
 function stepPlayer(s, p, t, dt) {
   const st = s.st, h = (c) => (s.ctl.held[p.k + c] ? 1 : 0);
   let vx = h('R') - h('L'), vy = h('D') - h('U');
+  if (pressed(s, p.k + '3') && t > p.cd) used(p) > 2 ? tone(s, 140, 0.2, SAW, 0.15) : (p.da = t + 200, p.cd = t + 900, tone(s, 700, 0.15, SAW, 0.08));
   if (t < p.lock) vx = vy = 0;
-  const m = Math.hypot(vx, vy) || 1, sp = ((170 - 12 * used(p)) * dt) / 1000;
+  else if (t < p.da && !(vx || vy)) { vx = Math.cos(p.o.rotation); vy = Math.sin(p.o.rotation); }
+  const m = Math.hypot(vx, vy) || 1, sp = ((170 - 12 * used(p)) * (t < p.da ? 3 : 1) * dt) / 1000;
   if (!blocked(p.f, p.x + (vx / m) * sp, p.y)) p.x += (vx / m) * sp;
   if (!blocked(p.f, p.x, p.y + (vy / m) * sp)) p.y += (vy / m) * sp;
 
@@ -572,22 +591,25 @@ function stepPlayer(s, p, t, dt) {
     [600, 480].forEach((fq, j) => tone(s, fq, 0.05, SQ, 0.06, j * 0.12));
   }
   if (p.f == 0 && p.bag.length) {
-    say(st, 'Objetos al bunker: ' + p.bag.length);
+    p.bag.forEach((it, j) => {
+      const n = st.bunker.length + j, r = 13 * Math.sqrt(n), x = 6 * T + r * Math.cos(n * 2.4), y = 7 * T + fy(0) + r * Math.sin(n * 2.4);
+      s.tweens.add({ targets: it.o.setPosition(p.x, p.y + fy(0)).V(true), x, y, angle: '+=360', delay: j * 150, duration: 600, ease: 'Back.easeOut',
+        onComplete: () => st.spark.explode(10, x, y) });
+    });
     st.bunker.push(...p.bag);
-    [523, 659, 784].forEach((fq, j) => tone(s, fq, 0.12, TRI, 0.15, j * 0.08));
+    arp(s, [523, 659, 784], 0.08);
     p.bag = [];
   }
 
   const near = nearest(st, p, 30);
   if (pressed(s, p.k + '1') && near) {
-    if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, SAW, 0.15); }
-    else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); st.spark.explode(14, near.o.x, near.o.y); p.bag.push(near); tone(s, 880, 0.08, TRI, 0.15); }
+    if (used(p) + ITEMS[near.k][1] > SLOTS) { st.msg.T('Mochila llena (B2 suelta)'); st.msgT = 1500; tone(s, 140, 0.2, SAW, 0.15); }
+    else { near.taken = 1; near.o.V(near.h.V(false).visible); st.spark.explode(14, near.o.x, near.o.y); p.bag.push(near); tone(s, 880, 0.08, TRI, 0.15); }
   }
   if (pressed(s, p.k + '2') && p.bag.length) {
     const it = p.bag.pop();
     Object.assign(it, { taken: 0, f: p.f, x: p.x, y: p.y });
-    it.o.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
-    it.h.setPosition(p.x, p.y + fy(p.f)).setVisible(true);
+    for (const o of [it.o, it.h]) o.setPosition(p.x, p.y + fy(p.f)).V(true);
     tone(s, 330, 0.08, TRI, 0.15);
   }
 
@@ -599,10 +621,10 @@ function stepPlayer(s, p, t, dt) {
   p.hands[0].x = 3 + sw;
   p.hands[1].x = 3 - sw;
   p.bg.setSize(8 + u, 18 + u * 1.5).setPosition(-12 - u / 2, 0);
-  p.lt.setVisible(!!show);
-  if (show) p.lt.setText(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
-  p.dot.y = hy(p.f) + 17;
-  p.bt.setText(p.k.slice(0, 2) + ' ' + u + '/' + SLOTS + (st.P[1] ? '' : ' ' + p.bag.map((it) => ITEMS[it.k][0]).join(', ')));
+  p.lt.V(!!show);
+  if (show) p.lt.T(ITEMS[show.k][0] + ' [' + ITEMS[show.k][1] + ']').setPosition(show.x, show.y + fy(show.f) - 12);
+  p.dot.y = hy(p.f) + 20;
+  p.bt.T(p.k.slice(0, 2) + ' ' + u + '/' + SLOTS + (st.P[1] ? '' : ' ' + p.bag.map((it) => ITEMS[it.k][0]).join(', ')));
 }
 
 function endLoot(s) {
@@ -610,9 +632,9 @@ function endLoot(s) {
   for (const p of st.P) if (p.f != 0) p.alive = 0;
   st.ph = 'cine';
   st.ct = 0;
-  st.mag = big(s, W / 2, H / 2, '6.0', 130, WHT).setOrigin(0.5);
-  st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, ORS, BLK).setOrigin(0.5);
-  st.cine = s.add.container(0, 0, [rect(s, -100, -100, W + 200, H + 200, 0x000000).setOrigin(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
+  st.mag = big(s, W / 2, H / 2, '6.0', 130, WHT).o();
+  st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, ORS, BLK).o();
+  st.cine = s.add.container(0, 0, [rect(s, -100, -100, W + 200, H + 200, 0x000000).o(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
   s.UL.add(st.cine);
   rumble(s, 7, 0.7);
 }
@@ -621,34 +643,34 @@ function cine(s, dt) {
   const st = s.st, ct = (st.ct += dt);
   if (ct < 4500) {
     const v = 6 + 4 * (ct / 4500) ** 2;
-    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).setColor(v > 8 ? REDS : v > 7 ? GOLDS : WHT);
+    st.mag.T(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).C(v > 8 ? REDS : v > 7 ? GOLDS : WHT);
     st.hud.shake(100, 0.001 * (v - 5) ** 2);
   } else if (ct < 6000) {
-    st.mag.setText(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').setColor(REDS);
+    st.mag.T(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').C(REDS);
     st.hud.shake(100, 0.03);
   } else if (ct < 7000) {
-    st.mag.setText('???');
+    st.mag.T('???');
     st.hud.shake(100, 0.04);
   } else if (!st.earth) {
-    st.mag.setVisible(false);
-    st.magL.setVisible(false);
+    st.mag.V(false);
+    st.magL.V(false);
     st.earth = 1;
     earth(s);
     rumble(s, 1, 1);
     tone(s, 55, 1.2, SAW, 0.5);
   }
   if (ct > 8800 && !st.apo) {
-    st.apo = big(s, W / 2, 515, 'COMIENZA EL APOCALIPSIS', 46, '#ff6b4a', BLK).setOrigin(0.5).setAlpha(0);
+    st.apo = big(s, W / 2, 515, 'COMIENZA EL APOCALIPSIS', 46, '#ff6b4a', BLK).o().setAlpha(0);
     st.cine.add(st.apo);
     s.tweens.add({ targets: st.apo, alpha: 1, scale: { from: 2.5, to: 1 }, duration: 500, ease: 'Back.easeOut', onComplete: () => st.hud.shake(250, 0.015) });
   }
-  if (ct > 11500 || (ct > 1500 && (pressed(s, 'START1') || pressed(s, 'START2')))) startLog(s);
+  if (ct > 11500 || (ct > 1500 && sp(s))) startLog(s);
 }
 
 function earth(s) {
   const r = 110, zig = [], X = W / 2, Y = 250, add = (o, tw) => (s.st.cine.add(o), s.tweens.add({ targets: o, ...tw }));
   for (let i = 0; i <= 8; i++) zig.push({ x: i % 8 ? (i % 2 ? 14 : -14) : 0, y: -r + (i * r) / 4 });
-  const core = s.add.circle(X, Y, 72, 0xff6b1a).setStrokeStyle(10, GOLD);
+  const core = s.add.circle(X, Y, 72, 0xff6b1a).S(10, GOLD);
   core.postFX?.addGlow(0xff4a1a, 8, 0, false, 0.1, 20);
   add(core, { scale: 0.88, duration: 300, yoyo: true, repeat: 9 });
   const half = (sd, lands) => {
@@ -669,8 +691,8 @@ function earth(s) {
     add(rect(s, X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, GOLD])),
       { x: X + Math.cos(a) * d, y: Y + Math.sin(a) * d, angle: rnd(900), alpha: 0, duration: 1500 + rnd(2000), ease: 'Cubic.easeOut' });
   }
-  for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).setStrokeStyle(8 - i * 4, i ? WHITE : GOLD), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
-  add(rect(s, 0, 0, W, H, WHITE).setOrigin(0), { alpha: 0, duration: 700 });
+  for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).S(8 - i * 4, i ? WHITE : GOLD), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
+  add(rect(s, 0, 0, W, H, WHITE).o(0), { alpha: 0, duration: 700 });
 }
 
 
@@ -698,126 +720,127 @@ const MILE = {
 };
 const EVENTS = [
   ['r', 'Réplica fuerte. El techo cruje y cae polvo.', '', [
-    ['Afirmar con cinta', 'cinta', 0.9, '', 'La cinta aguanta todo.', 'h', 'Cae una viga.'],
-    ['Agacharse y cubrirse', '', 0.6, '', 'Pasó el susto.', 'h', 'Un golpe en la cabeza.'],
-    ['Rezarle a San Expedito', '', 0.4, '', 'Funcionó, parece.', 'h', 'No funcionó.']]],
+    'Afirmar con cinta|cinta|.9||La cinta aguanta todo.|h|Cae una viga.',
+    'Agacharse y cubrirse||.6||Pasó el susto.|h|Un golpe en la cabeza.',
+    'Rezarle a San Expedito||.4||Funcionó, parece.|h|No funcionó.']],
   ['r', 'Réplica. Se rompe una cañería: agua turbia.', '', [
-    ['Hervirla con el encendedor', 'encendedor', 0.9, 'a+3', 'Sabe a cañería, pero sirve.', 's', 'Igual cayó mal.'],
-    ['Tomarla así no más', '', 0.4, 'a+3', 'Estómago de acero.', 'a+3 s', 'Alguien se enferma.'],
-    ['Taparla con la frazada', 'frazada', 1, '', 'Bunker seco.', '', '']]],
+    'Hervirla con el encendedor|encendedor|.9|a+3|Sabe a cañería, pero sirve.|s|Igual cayó mal.',
+    'Tomarla así no más||.4|a+3|Estómago de acero.|a+3 s|Alguien se enferma.',
+    'Taparla con la frazada|frazada|1||Bunker seco.']],
   ['s', 'Saqueadores golpean la escotilla.', '#saq', [
-    ['Salir con el uslero', 'uslero', 0.8, '', 'Huyeron del uslero de la abuela.', 'h', 'Eran más.'],
-    ['Que ladre el quiltro', 'perro', 0.85, '', 'El quiltro los espantó.', 'c-3', 'Se llevaron comida.'],
-    ['Pasarles comida', '', 1, 'c-3', 'Se fueron con tres raciones.', '', '']]],
+    'Salir con el uslero|uslero|.8||Huyeron del uslero de la abuela.|h|Eran más.',
+    'Que ladre el quiltro|perro|.85||El quiltro los espantó.|c-3|Se llevaron comida.',
+    'Pasarles comida||1|c-3|Se fueron con tres raciones.']],
   ['s', 'Saqueadores ofrecen comida por algo brillante.', '', [
-    ['Darles la Gaviota del Festival', 'gaviota', 1, 'c+5 -gaviota', 'La gaviota vale más que el oro.', '', ''],
-    ['Ofrecer 20 lucas', 'lucas', 0.1, 'c+3 -lucas', 'Increíble, aceptaron.', '-lucas', 'Se rieron y se lo llevaron.'],
-    ['Rechazar', '', 1, '', 'Se van refunfuñando.', '', '']]],
+    'Darles la Gaviota del Festival|gaviota|1|c+5 -gaviota|La gaviota vale más que el oro.',
+    'Ofrecer 20 lucas|lucas|.1|c+3 -lucas|Increíble, aceptaron.|-lucas|Se rieron y se lo llevaron.',
+    'Rechazar||1||Se van refunfuñando.']],
   ['s', 'Un grupo pide refugio en el bunker.', '', [
-    ['Hacerte pasar por Leo Rey', 'peluca', 1, 'c+4 a+2', 'Foto con Leo Rey a cambio de comida.', '', ''],
-    ['Dejarlos entrar', '', 0.5, 'c+3 a+2', 'Traían provisiones.', 'c-3 a-3', 'Se comieron todo y se fueron.'],
-    ['Negarse', '', 1, '', 'Cierras con culpa.', '', '']]],
+    'Hacerte pasar por Leo Rey|peluca|1|c+4 a+2|Foto con Leo Rey a cambio de comida.',
+    'Dejarlos entrar||.5|c+3 a+2|Traían provisiones.|c-3 a-3|Se comieron todo y se fueron.',
+    'Negarse||1||Cierras con culpa.']],
   ['s', 'De noche intentan forzar la escotilla.', '', [
-    ['Asomar el Moai', 'moai', 0.9, '', 'El Moai impone respeto.', '', ''],
-    ['Hacerse el muerto', '', 0.6, '', 'Se aburrieron.', 'c-3 a-2', 'Entraron y robaron.'],
-    ['Pelear', '', 0.5, '', 'Los echaste a escobazos.', 'h', 'Alguien sale herido.']]],
+    'Asomar el Moai|moai|.9||El Moai impone respeto.',
+    'Hacerse el muerto||.6||Se aburrieron.|c-3 a-2|Entraron y robaron.',
+    'Pelear||.5||Los echaste a escobazos.|h|Alguien sale herido.']],
   ['m', 'Un perro callejero rasguña la puerta.', '', [
-    ['Darle de comer', '', 0.6, 'c-1 +radio', 'Vuelve con una radio en el hocico.', 'c-1 h', 'Te muerde el tobillo.'],
-    ['Adoptarlo', '', 0.7, '+perro c-1', 'Nuevo integrante del bunker.', 'h', 'No quería ser adoptado.'],
-    ['Ignorarlo', '', 1, '', 'Se va llorando. Tú también.', '', '']]],
+    'Darle de comer||.6|c-1 +radio|Vuelve con una radio en el hocico.|c-1 h|Te muerde el tobillo.',
+    'Adoptarlo||.7|+perro c-1|Nuevo integrante del bunker.|h|No quería ser adoptado.',
+    'Ignorarlo||1||Se va llorando. Tú también.']],
   ['m', 'Alguien amanece con fiebre.', 's', [
-    ['Usar el botiquín', 'botiquin', 1, 'x', 'Paracetamol y a dormir.', '', ''],
-    ['Darle pisco "medicinal"', 'pisco', 0.5, 'x -pisco', 'Santo remedio.', '-pisco', 'Ahora tiene fiebre y caña.'],
-    ['Esperar', '', 0.3, 'x', 'Se le pasó.', '', 'Sigue mal.']]],
+    'Usar el botiquín|botiquin|1|x|Paracetamol y a dormir.',
+    'Darle pisco "medicinal"|pisco|.5|x -pisco|Santo remedio.|-pisco|Ahora tiene fiebre y caña.',
+    'Esperar||.3|x|Se le pasó.||Sigue mal.']],
   ['m', 'Alguien se tuerce un tobillo.', 'h', [
-    ['Vendar con cinta', 'cinta', 0.9, 'x', 'Quedó como nuevo.', '', 'Quedó peor.'],
-    ['Usar el botiquín', 'botiquin', 1, 'x', 'Vendaje profesional.', '', ''],
-    ['Aguantarse', '', 0.4, 'x', 'Era leve.', '', 'Cojea.']]],
+    'Vendar con cinta|cinta|.9|x|Quedó como nuevo.||Quedó peor.',
+    'Usar el botiquín|botiquin|1|x|Vendaje profesional.',
+    'Aguantarse||.4|x|Era leve.||Cojea.']],
   ['m', 'Oscuridad total. No se ve nada.', '', [
-    ['Prender la linterna', 'linterna+pilas', 1, '', 'Luz. Bendita luz.', '', ''],
-    ['Cantar con la guitarra', 'guitarra', 1, 'x', 'Suena "Gracias a la vida". Se emocionan.', '', ''],
-    ['Aguantar a ciegas', '', 0.5, '', 'Nadie se tropezó.', 'h', 'Alguien se tropieza.']]],
+    'Prender la linterna|linterna+pilas|1||Luz. Bendita luz.',
+    'Cantar con la guitarra|guitarra|1|x|Suena "Gracias a la vida". Se emocionan.',
+    'Aguantar a ciegas||.5||Nadie se tropezó.|h|Alguien se tropieza.']],
   ['m', 'Hay que salir a buscar provisiones.', '', [
-    ['Ir con linterna', 'linterna+pilas', 0.8, 'c+3 a+2', 'Encuentras un almacén intacto.', 'h', 'Te cae un ladrillo.'],
-    ['Ir con el mapa', 'mapa', 0.7, 'c+2 a+3', 'Un súper saqueado a medias.', 'h', 'Te pierdes y vuelves herido.'],
-    ['Ir a ciegas', '', 0.4, 'c+2', 'Algo es algo.', 'h', 'Vuelves cojeando.']]],
+    'Ir con linterna|linterna+pilas|.8|c+3 a+2|Encuentras un almacén intacto.|h|Te cae un ladrillo.',
+    'Ir con el mapa|mapa|.7|c+2 a+3|Un súper saqueado a medias.|h|Te pierdes y vuelves herido.',
+    'Ir a ciegas||.4|c+2|Algo es algo.|h|Vuelves cojeando.']],
   ['m', 'Una lata y ningún abrelatas a mano.', '', [
-    ['Abrirla con el cortaplumas', 'cortaplumas', 1, 'c+2', 'Click. Porotos.', '', ''],
-    ['Usar el abrelatas', 'abrelatas', 1, 'c+2', 'Como la gente.', '', ''],
-    ['A combos', '', 0.4, 'c+2', 'Se abrió.', 'h', 'Te cortas la mano.']]],
+    'Abrirla con el cortaplumas|cortaplumas|1|c+2|Click. Porotos.',
+    'Usar el abrelatas|abrelatas|1|c+2|Como la gente.',
+    'A combos||.4|c+2|Se abrió.|h|Te cortas la mano.']],
   ['m', 'Un gato se cuela por una grieta.', '', [
-    ['Adoptarlo', '', 0.8, '+gato', 'Ronronea. Sube el ánimo.', 'h', 'Te araña la cara.'],
-    ['Echarlo', '', 1, '', 'El gato te mira con desprecio.', '', '']]],
+    'Adoptarlo||.8|+gato|Ronronea. Sube el ánimo.|h|Te araña la cara.',
+    'Echarlo||1||El gato te mira con desprecio.']],
   ['m', 'Es 18 de septiembre en el bunker.', '', [
-    ['Bailar cueca con el pañuelo', 'cueca', 1, 'x', '¡Viva Chile! Hasta el enfermo se para.', '', ''],
-    ['Tomarse el terremoto', 'terremoto', 1, 'x d -terremoto', 'Lloran de risa. Al otro día, caña brutal.', '', ''],
-    ['Asado imaginario', '', 1, '', 'Huele a nada, pero se agradece.', '', '']]],
+    'Bailar cueca con el pañuelo|cueca|1|x|¡Viva Chile! Hasta el enfermo se para.',
+    'Tomarse el terremoto|terremoto|1|x d -terremoto|Lloran de risa. Al otro día, caña brutal.',
+    'Asado imaginario||1||Huele a nada, pero se agradece.']],
   ['m', 'La radio podría tener señal.', '', [
-    ['Prender la radio', 'radio+pilas', 0.8, 'e #radio', 'Los rescates avanzan por la ciudad.', '', 'Solo estática.'],
-    ['Antena hechiza', 'cinta+frazada', 0.4, 'e', '¡Hay rescates!', '', 'No funcionó.'],
-    ['Dejarla', '', 1, '', 'Silencio.', '', '']]],
+    'Prender la radio|radio+pilas|.8|e #radio|Los rescates avanzan por la ciudad.||Solo estática.',
+    'Antena hechiza|cinta+frazada|.4|e|¡Hay rescates!||No funcionó.',
+    'Dejarla||1||Silencio.']],
   ['s', 'Vuelven los saqueadores, con megáfono.', '', [
-    ['Asomar el Moai', 'moai', 0.9, '', 'Se alejan.', 'c-2', 'No les importó el Moai.'],
-    ['Que ladre el quiltro', 'perro', 0.8, '', 'El quiltro suena como diez perros.', 'c-3', 'Le tiraron una salchicha. Traidor.'],
-    ['Negociar por el ducto', '', 0.5, 'c-2', 'Se conforman con dos raciones.', 'c-4 a-2', 'Negociaste fatal.']], '#saq'],
+    'Asomar el Moai|moai|.9||Se alejan.|c-2|No les importó el Moai.',
+    'Que ladre el quiltro|perro|.8||El quiltro suena como diez perros.|c-3|Le tiraron una salchicha. Traidor.',
+    'Negociar por el ducto||.5|c-2|Se conforman con dos raciones.|c-4 a-2|Negociaste fatal.'], '#saq'],
   ['m', 'Por el ducto, el del 7B: "¿Han visto a mi gato?"', '', [
-    ['Devolverle el gato', 'gato', 1, '-gato c+4', 'Te pasa cuatro tarros. "¡Gracias!"', '', ''],
-    ['Hacerse el leso', '', 0.6, '', 'Nadie dice nada. El gato tampoco.', '#venganza', 'El gato maúlla. El vecino jura venganza.']], 'gato'],
+    'Devolverle el gato|gato|1|-gato c+4|Te pasa cuatro tarros. "¡Gracias!"',
+    'Hacerse el leso||.6||Nadie dice nada. El gato tampoco.|#venganza|El gato maúlla. El vecino jura venganza.'], 'gato'],
   ['s', 'Vuelve el del 7B con su cuñado: "¡El Michi!"', '', [
-    ['Devolverlo', 'gato', 1, '-gato', 'Lo abraza llorando. Se van en paz.', '', ''],
-    ['Pagarle con comida', '', 1, 'c-3', 'Acepta tres tarros por el Michi.', '', ''],
-    ['Pelear', '', 0.5, '', 'El cuñado era puro bulto.', 'h c-2', 'El cuñado no era puro bulto.']], '#venganza'],
+    'Devolverlo|gato|1|-gato|Lo abraza llorando. Se van en paz.',
+    'Pagarle con comida||1|c-3|Acepta tres tarros por el Michi.',
+    'Pelear||.5||El cuñado era puro bulto.|h c-2|El cuñado no era puro bulto.'], '#venganza'],
   ['s', 'Una carta bajo la escotilla: "Sé que tienen agua."', '', [
-    ['Dejar agua afuera', '', 1, 'a-2 #amigo', 'Una nota: "Gracias. Volveré."', '', ''],
-    ['Ignorarla', '', 1, '#carta', 'Nadie duerme esa noche.', '', ''],
-    ['Responder "NO"', '', 1, '#carta', 'Pasas la nota. Silencio.', '', '']]],
+    'Dejar agua afuera||1|a-2 #amigo|Una nota: "Gracias. Volveré."',
+    'Ignorarla||1|#carta|Nadie duerme esa noche.',
+    'Responder "NO"||1|#carta|Pasas la nota. Silencio.']],
   ['m', 'Golpecitos: es Don Pato, el conserje, el de la carta.', '', [
-    ['Dejarlo entrar', '', 1, '+pato c+3 +cortaplumas', 'Trae tarros, un cortaplumas y chismes.', '', ''],
-    ['Solo darle las gracias', '', 1, 'x', 'Te deja un remedio casero.', '', '']], '#amigo'],
+    'Dejarlo entrar||1|+pato c+3 +cortaplumas|Trae tarros, un cortaplumas y chismes.',
+    'Solo darle las gracias||1|x|Te deja un remedio casero.'], '#amigo'],
   ['s', 'El de la carta volvió con amigos.', '', [
-    ['Asomar el uslero', 'uslero', 0.8, '', 'El uslero de la abuela es leyenda.', 'h a-2', 'Eran muchos.'],
-    ['Darles agua', '', 1, 'a-4', 'Se llevan cuatro raciones.', '', ''],
-    ['Atrincherarse', '', 0.4, '', 'Se rinden al amanecer.', 'a-3 h', 'Entran y se llevan agua.']], '#carta'],
+    'Asomar el uslero|uslero|.8||El uslero de la abuela es leyenda.|h a-2|Eran muchos.',
+    'Darles agua||1|a-4|Se llevan cuatro raciones.',
+    'Atrincherarse||.4||Se rinden al amanecer.|a-3 h|Entran y se llevan agua.'], '#carta'],
   ['m', 'Un influencer transmite un live del apocalipsis.', '', [
-    ['Salir con la peluca de Leo Rey', 'peluca', 1, 'c+3 a+3 e', 'Viral. Mandan ayuda al "bunker de Leo Rey".', '', ''],
-    ['Pedir ayuda en vivo', '', 0.5, 'c+2', 'Mandan un dron con comida.', '', 'Solo le dieron likes.'],
-    ['Cerrarle la escotilla', '', 1, '', 'Se corta el live. Paz.', '', '']]],
+    'Salir con la peluca de Leo Rey|peluca|1|c+3 a+3 e|Viral. Mandan ayuda al "bunker de Leo Rey".',
+    'Pedir ayuda en vivo||.5|c+2|Mandan un dron con comida.||Solo le dieron likes.',
+    'Cerrarle la escotilla||1||Se corta el live. Paz.']],
   ['m', 'La abuela sabe hacer pan con casi nada.', '', [
-    ['Darle una ración de comida', '', 0.8, 'c-1 c+4', 'Pan amasado del apocalipsis. Huele a domingo.', 'c-1', 'Se quemó.'],
-    ['Mejor no', '', 1, '', 'La abuela no te habla en tres días.', '', '']], 'abuela'],
+    'Darle una ración de comida||.8|c-1 c+4|Pan amasado del apocalipsis. Huele a domingo.|c-1|Se quemó.',
+    'Mejor no||1||La abuela no te habla en tres días.'], 'abuela'],
   ['m', 'El quiltro escarba como loco en una esquina.', '', [
-    ['Ayudarlo', '', 0.7, 'c+3', 'Un tarro de duraznos de los 80. Sigue bueno. Creo.', 'h', 'Una rata. Muerde.'],
-    ['Retarlo', '', 1, '', 'El quiltro te mira decepcionado.', '', '']], 'perro'],
+    'Ayudarlo||.7|c+3|Un tarro de duraznos de los 80. Sigue bueno. Creo.|h|Una rata. Muerde.',
+    'Retarlo||1||El quiltro te mira decepcionado.'], 'perro'],
   ['m', 'La vecina sabe dónde se volcó un camión de ayuda.', '', [
-    ['Ir con el mapa', 'mapa', 0.85, 'c+4 a+4', 'Era cierto. ¡Bendita copucha!', 'h', 'Era otro chisme.'],
-    ['Ir a ciegas', '', 0.45, 'c+3 a+2', 'Lo encontraste.', 'h', 'Vuelves herido.'],
-    ['No creerle', '', 1, '', 'La vecina se ofende. Chisme nuevo: tú.', '', '']], 'vecina'],
+    'Ir con el mapa|mapa|.85|c+4 a+4|Era cierto. ¡Bendita copucha!|h|Era otro chisme.',
+    'Ir a ciegas||.45|c+3 a+2|Lo encontraste.|h|Vuelves herido.',
+    'No creerle||1||La vecina se ofende. Chisme nuevo: tú.'], 'vecina'],
   ['m', 'Aterriza un dron de reparto perdido.', '', [
-    ['Abrir el paquete', '', 0.6, '+botiquin', '¡Un botiquín! Gracias, algoritmo.', '', 'Era una funda de celular.'],
-    ['Desarmarlo', '', 1, '+pilas', 'Pilas nuevas. Algo es algo.', '', '']]],
+    'Abrir el paquete||.6|+botiquin|¡Un botiquín! Gracias, algoritmo.||Era una funda de celular.',
+    'Desarmarlo||1|+pilas|Pilas nuevas. Algo es algo.']],
   ['m', 'Radio: "Rescates en plazas de Santiago".', '', [
-    ['Marcar la plaza en el mapa', 'mapa', 1, 'e e', 'Plaza Ñuñoa. Está cerca.', '', ''],
-    ['Memorizarla', '', 1, 'e', 'Repites "Plaza Ñuñoa" toda la noche.', '', '']], '#radio'],
+    'Marcar la plaza en el mapa|mapa|1|e e|Plaza Ñuñoa. Está cerca.',
+    'Memorizarla||1|e|Repites "Plaza Ñuñoa" toda la noche.'], '#radio'],
 ];
 const ENDINGS = [
   ['Se escucha un helicóptero.', [
-    ['Encumbrar el volantín', 'volantin', 0.85, 'r', 'Ven el volantín. ¡Rescate!', '', 'El hilo se cortó.'],
-    ['Gritar y hacer señas', '', 0.35, 'r', '¡Los vieron!', 'h', 'No los vieron.'],
-    ['Esconderse', '', 1, '', 'Se aleja.', '', '']]],
+    'Encumbrar el volantín|volantin|.85|r|Ven el volantín. ¡Rescate!||El hilo se cortó.',
+    'Gritar y hacer señas||.35|r|¡Los vieron!|h|No los vieron.',
+    'Esconderse||1||Se aleja.']],
   ['Pasa una caravana rumbo al sur.', [
-    ['Unirse con el mapa', 'mapa', 0.8, 'r', 'Llegan a un pueblo a salvo.', 'h', 'Se perdieron.'],
-    ['Unirse a ciegas', '', 0.4, 'r', 'Llegan de milagro.', 'k', 'El viaje cobra una vida.'],
-    ['Quedarse', '', 1, '', 'Se pierde en el polvo.', '', '']]],
+    'Unirse con el mapa|mapa|.8|r|Llegan a un pueblo a salvo.|h|Se perdieron.',
+    'Unirse a ciegas||.4|r|Llegan de milagro.|k|El viaje cobra una vida.',
+    'Quedarse||1||Se pierde en el polvo.']],
   ['Radio: refugio en el cerro San Cristóbal.', [
-    ['Seguir la señal', 'radio+pilas', 0.8, 'r', 'La Virgen del cerro los recibe.', 'h', 'Se cortó la señal.'],
-    ['Caminar a ciegas', '', 0.3, 'r', 'Llegaron de milagro.', 'h', 'Vuelven heridos.'],
-    ['Ignorar', '', 1, '', 'Mejor malo conocido.', '', '']]],
+    'Seguir la señal|radio+pilas|.8|r|La Virgen del cerro los recibe.|h|Se cortó la señal.',
+    'Caminar a ciegas||.3|r|Llegaron de milagro.|h|Vuelven heridos.',
+    'Ignorar||1||Mejor malo conocido.']],
   ['Golpean: ¿rescate o saqueadores?', [
-    ['Abrir con la peluca de Leo Rey', 'peluca', 0.9, 'r', 'Era un convoy. ¡A salvo!', '', 'Eran saqueadores fans.'],
-    ['Abrir', '', 0.5, 'r', '¡Rescate! Sales a la luz.', 'c-5 a-5', 'Saqueadores.'],
-    ['No abrir', '', 1, '', 'Silencio.', '', '']]],
+    'Abrir con la peluca de Leo Rey|peluca|.9|r|Era un convoy. ¡A salvo!||Eran saqueadores fans.',
+    'Abrir||.5|r|¡Rescate! Sales a la luz.|c-5 a-5|Saqueadores.',
+    'No abrir||1||Silencio.']],
 ];
 
+[[EVENTS, 3], [ENDINGS, 1]].forEach(([a, i]) => a.forEach((e) => (e[i] = e[i].map((o) => o.split('|')))));
 const alive = (st) => st.ppl.filter((p) => p.st < 3);
 const person = (n, k) => ({ n, k, st: 0, w: 1, f: 1, th: 0, hu: 0 });
 const has = (st, req) => !req || req.split('+').every((k) => st.inv[k] > 0 || st.ppl.some((p) => p.k == k && p.st < 3));
@@ -859,30 +882,29 @@ function startLog(s) {
     big(s, 20, 6, 'BITÁCORA DEL BUNKER', 28, GOLDS)]);
   st.logC = s.add.container();
   st.statC = s.add.container(0, 0, [
-    rect(s, 516, 56, 268, 250, 0x15122a).setOrigin(0).setStrokeStyle(2, 0x3b9cff),
+    rect(s, 516, 56, 268, 536, 0x15122a).o(0).S(2, 0x3b9cff),
     big(s, 532, 64, 'AGUA', 14, '#3b9cff', BLK),
     big(s, 652, 64, 'COMIDA', 14, ORS, BLK),
     txt(s, 532, 136, 'PERSONA', 11, '#8a86a8'),
-    txt(s, 776, 136, 'RECIBE', 11, '#8a86a8').setOrigin(1, 0),
+    txt(s, 776, 136, 'RECIBE', 11, '#8a86a8').o(1, 0),
   ]);
-  st.dayT = big(s, 780, 4, '', 32, WHT).setOrigin(1, 0);
+  st.dayT = big(s, 780, 4, '', 32, WHT).o(1, 0);
   st.aT = big(s, 532, 80, '', 30, '#3b9cff', BLK);
   st.cT = big(s, 652, 80, '', 30, ORS, BLK);
   st.spT = [532, 652].map((x) => txt(s, x, 112, '', 12));
-  st.rbar = [532, 652].map((x) => rect(s, x, 129, 0, 4).setOrigin(0));
-  st.toolT = txt(s, 532, 0, '', 13, GRAYS).setWordWrapWidth(236);
-  st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, ...st.rbar, st.toolT]);
-  st.card = s.add.container(W / 2, 452).setVisible(false);
-  st.cardBg = rect(s, 0, 0, 680, 280, 0x16131f).setStrokeStyle(3, GOLD);
-  st.tag = rect(s, -324, -128, 110, 26, GOLD).setOrigin(0);
-  st.tagT = txt(s, -269, -115, '', 17, BLK, HF).setOrigin(0.5);
-  st.cardT = txt(s, -324, -90, '', 19).setWordWrapWidth(648);
-  st.sel = rect(s, -330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, GOLD);
-  st.optT = [0, 1, 2].map(() => txt(s, -310, 0, '', 18).setOrigin(0, 0.5).setWordWrapWidth(620));
-  st.hint = txt(s, -324, 104, '', 14, GRAYS);
-  st.rT = [0, 1, 2, 3, 4, 5, 6].map((i) => txt(s, -310, -54 + i * 22, '', 16).setOrigin(0, 0.5));
-  st.bar = rect(s, -330, 128, 660, 6, GOLD).setOrigin(0, 0.5);
-  st.card.add([rect(s, 8, 8, 680, 280, 0, 0.6), st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
+  st.rbar = [532, 652].map((x) => rect(s, x, 129, 0, 4).o(0));
+  st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, ...st.rbar]);
+  st.card = s.add.container(264, 452).V(false);
+  st.cardBg = rect(s, 0, 0, 480, 280, 0x16131f).S(3, GOLD);
+  st.tag = rect(s, -224, -128, 110, 26, GOLD).o(0);
+  st.tagT = txt(s, -269, -115, '', 17, BLK, HF).o();
+  st.cardT = txt(s, -224, -90, '', 17).setWordWrapWidth(448);
+  st.sel = rect(s, -230, 0, 460, 34, 0x2c2c38).o(0, 0.5).S(2, GOLD);
+  st.optT = [0, 1, 2].map(() => txt(s, -210, 0, '', 16).o(0, 0.5).setWordWrapWidth(420));
+  st.hint = txt(s, -224, 104, '', 14, GRAYS);
+  st.rT = [0, 1, 2, 3, 4, 5, 6].map((i) => txt(s, -210, -38 + i * 22, '', 16).o(0, 0.5));
+  st.bar = rect(s, -230, 128, 460, 6, GOLD).o(0, 0.5);
+  st.card.add([rect(s, 8, 8, 480, 280, 0, 0.6), st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
   s.UL.add([st.logC, st.statC, st.card, crt(s)]);
 
   const n = alive(st).length;
@@ -912,11 +934,11 @@ const sev = (p) => (p.st > 2 ? 3 : p.th >= LIM.w - 2 || p.hu >= LIM.f - 3 ? 2 : 
 
 function stat(st) {
   const s = st.s, ppl = alive(st);
-  st.dayT.setText('DÍA ' + st.day);
+  st.dayT.T('DÍA ' + st.day);
   [st.a, st.c].forEach((v, i) => {
     const n = ppl.filter((p) => (i ? p.f : p.w)).length, d = n ? MFLOOR(v / n) : 9, c = SEV[d > 3 ? 0 : d > 1 ? 1 : 2];
-    [st.aT, st.cT][i].setText(v).setColor(hx(c));
-    st.spT[i].setText(!n ? 'nadie recibe' : !d ? 'no alcanza' : d + (d == 1 ? ' día' : ' días')).setColor(hx(c));
+    [st.aT, st.cT][i].T(v).C(hx(c));
+    st.spT[i].T(!n ? 'nadie recibe' : !d ? 'no alcanza' : d + (d == 1 ? ' día' : ' días')).C(hx(c));
     st.rbar[i].setSize(MMIN(d, 7) * 14 + 2, 4).setFillStyle(c);
   });
   st.pplT.forEach((t) => t.destroy());
@@ -925,10 +947,11 @@ function stat(st) {
     txt(s, 546, 152 + i * 20, p.n + ': ' + (p.st > 2 ? STATE[p.st] : [p.st && STATE[p.st], p.th && 'sed ' + p.th, p.hu > 2 && 'hambre ' + p.hu].filter(Boolean).join(' · ') || 'bien'),
       12, hx(SEV[sev(p)])),
   ]);
-  st.pplT.push(...ppl.map((p) => txt(s, 776, 152 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 13, mode(p) ? ORS : '#9cc9ff').setOrigin(1, 0)));
+  st.pplT.push(...ppl.map((p) => txt(s, 776, 152 + st.ppl.indexOf(p) * 20, ['A+C', 'A', 'C', 'nada'][mode(p)], 13, mode(p) ? ORS : '#9cc9ff').o(1, 0)));
+  let n = 0, y = 168 + st.ppl.length * 20;
+  st.pplT.push(txt(s, 532, y, 'BODEGA', 11, '#8a86a8'));
+  for (const k in st.inv) if (!WATER[k] && !FOOD[k]) for (let j = 0; j < st.inv[k] && n < 36; j++, n++) st.pplT.push(s.add.image(552 + (n % 6) * 42, y + 38 + (n / 6 | 0) * 42, 'i' + k).setScale(1.3));
   st.statC.add(st.pplT);
-  const tools = Object.keys(st.inv).filter((k) => st.inv[k] > 0 && !WATER[k] && !FOOD[k]).map((k) => ITEMS[k][0]);
-  st.toolT.setText(tools.join(', ') || 'Sin herramientas').setY(164 + st.ppl.length * 20);
 }
 
 function hit(st, from, to) {
@@ -937,9 +960,10 @@ function hit(st, from, to) {
   const p = pick(c);
   p.st = to;
   if (to == 3) log(st, p.n == 'Tú' ? 'Moriste.' : p.n + ' murió.', REDS);
+  if (!to) log(st, (p.n == 'Tú' ? 'Te recuperas' : p.n + ' se recupera') + '.', TEALS);
 }
 
-function apply(st, eff) {
+function apply(st, eff = '') {
   for (const e of eff.split(' ').filter(Boolean)) {
     const n = +e.slice(1), k = e.slice(1);
     if (e[0] == 'a') st.a = MMAX(0, st.a + n);
@@ -960,11 +984,10 @@ function apply(st, eff) {
   }
 }
 
-const weight = (tp, d) => (tp == 'r' ? 6 / (d + 1) : tp == 's' ? (d >= 2 && d <= 5 ? 3 : 0.8) : 1);
+const weight = (tp, d) => (tp == 'r' ? 4 / (d + 1) : tp == 's' && d > 1 && d < 6 ? 1.5 : 1);
 const elig = (st, c) => !c || c.split(' ').every((t) => (t[0] == '#' ? st.fl[t.slice(1)] : has(st, t)));
 const usable = (st, opts) => opts.filter((o) => o[1] && has(st, o[1])).length;
-const starts = (e) => /#/.test(e[2] + e[3].map((o) => o[3] + o[5]).join(''));
-const wEv = (st, e) => weight(e[0], st.day) * (1 + 2 * usable(st, e[3])) * (e[4] && e[4][0] == '#' ? 30 : starts(e) ? 3 : 1);
+const wEv = (st, e) => weight(e[0], st.day) * (1 + 0.5 * usable(st, e[3])) * (e[4] && e[4][0] == '#' ? 8 : 1);
 const wpick = (a, w) => {
   let r = MRND() * a.reduce((t, x) => t + w(x), 0);
   return a.find((x) => (r -= w(x)) <= 0) || a[0];
@@ -998,8 +1021,8 @@ function nextDay(s) {
   }
   if (sed.length + ham.length) log(st, [sed.length && 'Sed: ' + sed.join(', '), ham.length && 'Hambre: ' + ham.join(', ')].filter(Boolean).join(' · '), ORS);
   for (const p of alive(st)) {
-    if (p.st == 0 || MRND() > (p.st == 2 ? 0.12 : 0.06)) continue;
-    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.', TEALS); if (MRND() < 0.3) st.inv.botiquin--; }
+    if (p.st == 0 || MRND() > (p.st == 2 ? 0.2 : 0.12)) continue;
+    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín ' + (p.n == 'Tú' ? 'te salva.' : 'salva a ' + p.n + '.'), TEALS); if (MRND() < 0.3) st.inv.botiquin--; }
     else hit(st, p.st, 3);
   }
   const ppl = alive(st);
@@ -1034,10 +1057,8 @@ function openRation(s, why) {
   st.rs = alive(st).map(mode).join();
   st.ev = { ration: 1, cur: 0, t: CHOICE_MS };
   setTag(st, 'q');
-  st.cardT.setText(why);
-  st.optT.forEach((t) => t.setText(''));
-  st.card.setVisible(true);
-  layoutLog(st);
+  st.cardT.T(why);
+  st.optT.forEach((t) => t.T(''));
   tone(s, 660, 0.12, TRI, 0.15);
   drawRation(st);
 }
@@ -1045,18 +1066,18 @@ function openRation(s, why) {
 function drawRation(st) {
   const ppl = alive(st).slice(0, 6), ev = st.ev;
   st.rT.forEach((t, i) =>
-    t.setText(i > ppl.length ? '' : (i == ev.cur ? '> ' : '  ') + (i < ppl.length ? ppl[i].n.padEnd(23) + RMODE[mode(ppl[i])] : 'LISTO'))
-      .setColor(i == ev.cur ? GOLDS : i < ppl.length && mode(ppl[i]) ? ORS : WHT));
-  st.sel.setSize(660, 22).setY(st.rT[ev.cur].y).setVisible(true);
-  st.hint.setText('←→ cambiar   B1 listo').setColor('#9cc9ff');
+    t.T(i > ppl.length ? '' : (i == ev.cur ? '> ' : '  ') + (i < ppl.length ? ppl[i].n.padEnd(23) + RMODE[mode(ppl[i])] : 'LISTO'))
+      .C(i == ev.cur ? GOLDS : i < ppl.length && mode(ppl[i]) ? ORS : WHT));
+  st.sel.setSize(460, 22).setY(st.rT[ev.cur].y).V(true);
+  st.hint.T('←→ cambiar   B1 listo').C('#9cc9ff');
 }
 
 function closeRation(st) {
   const ppl = alive(st), skip = ppl.filter((p) => !p.w || !p.f).map((p) => p.n);
   st.ev = null;
-  st.card.setVisible(false);
-  st.rT.forEach((t) => t.setText(''));
-  st.sel.setSize(660, 34);
+  st.card.V(false);
+  st.rT.forEach((t) => t.T(''));
+  st.sel.setSize(460, 34);
   st.lt = DAY_MS;
   if (ppl.map(mode).join() != st.rs) log(st, 'Se raciona a: ' + (skip.join(', ') || 'nadie') + '.', '#9cc9ff');
 }
@@ -1065,9 +1086,7 @@ function openCard(s, text, opts, kind) {
   const st = s.st;
   st.ev = { opts, t: CHOICE_MS, cur: MMAX(0, opts.findIndex((o) => has(st, o[1]))) };
   setTag(st, kind);
-  st.cardT.setText(text);
-  st.card.setVisible(true);
-  layoutLog(st);
+  st.cardT.T(text);
   tone(s, 660, 0.12, TRI, 0.15);
   drawCard(st);
 }
@@ -1075,26 +1094,28 @@ function openCard(s, text, opts, kind) {
 function setTag(st, kind) {
   const [l, c] = KIND[kind];
   st.tag.setFillStyle(c);
-  st.cardBg.setStrokeStyle(3, c);
-  st.sel.setFillStyle(c, 0.22).setStrokeStyle(2, c);
+  st.cardBg.S(3, c);
+  st.sel.setFillStyle(c, 0.22).S(2, c);
   st.bar.setFillStyle(c);
-  st.tagT.setText(l + (kind == 'x' ? '' : ' · DÍA ' + st.day));
+  st.tagT.T(l + (kind == 'x' ? '' : ' · DÍA ' + st.day));
   st.tag.width = l.length * 9 + (kind == 'x' ? 24 : 80);
-  st.tagT.x = -324 + st.tag.width / 2;
+  st.tagT.x = -224 + st.tag.width / 2;
+  st.card.V(true);
+  layoutLog(st);
 }
 
 function drawCard(st) {
   const ev = st.ev, y0 = -20 + MMAX(0, st.cardT.height - 30);
   st.optT.forEach((t, i) => {
     const o = ev.opts[i];
-    if (!o) return t.setText('');
+    if (!o) return t.T('');
     const ok = has(st, o[1]);
-    t.setY(y0 + i * 40).setText((i == ev.cur ? '> ' : '  ') + o[0] + (ok ? '' : '   (no tienes)'))
-      .setColor(!ok ? '#666' : i == ev.cur ? GOLDS : WHT);
+    t.setY(y0 + i * 40).T((i == ev.cur ? '> ' : '  ') + o[0] + (ok ? '' : ' (no tienes)'))
+      .C(!ok ? '#666' : i == ev.cur ? GOLDS : WHT);
   });
-  st.sel.setVisible(true).setY(y0 + ev.cur * 40);
+  st.sel.V(true).setY(y0 + ev.cur * 40);
   const o = ev.opts[ev.cur];
-  st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? GRAYS : ORS);
+  st.hint.T(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).C(has(st, o[1]) ? GRAYS : ORS);
 }
 
 function diff(st, b) {
@@ -1109,32 +1130,33 @@ function diff(st, b) {
 function choose(s) {
   const st = s.st, o = st.ev.opts[st.ev.cur];
   if (!has(st, o[1])) return tone(s, 140, 0.2, SAW, 0.2);
-  const win = MRND() < o[2], b = { a: st.a, c: st.c, ppl: st.ppl.map((p) => p.st), inv: { ...st.inv } };
-  apply(st, win ? o[3] : o[5]);
-  const m = win ? o[4] : o[6] || o[4], d = diff(st, b);
-  st.optT.forEach((t) => t.setText(''));
-  st.sel.setVisible(false);
-  st.optT[0].setText(m).setColor(win ? TEALS : '#ff6b4a').setFontSize(20);
-  st.optT[1].setText(d).setColor(GOLDS).setFontSize(16);
-  st.hint.setText('B1 continuar').setColor(GRAYS);
-  st.bar.width = 0;
+  const win = MRND() < o[2], b = { a: st.a, c: st.c, ppl: st.ppl.map((p) => p.st), inv: { ...st.inv } }, m = win ? o[4] : o[6] || o[4];
   log(st, '» ' + o[0] + ': ' + m, win ? TEALS : '#ff6b4a');
+  apply(st, win ? o[3] : o[5]);
+  const d = diff(st, b);
+  st.optT.forEach((t) => t.T(''));
+  st.sel.V(false);
+  st.optT[0].T(m).C(win ? TEALS : '#ff6b4a').setFontSize(20);
+  st.optT[1].T(d).C(GOLDS).setFontSize(16);
+  st.hint.T('B1 continuar').C(GRAYS);
+  st.bar.width = 0;
   st.ev.out = OUT_MS;
-  win ? [880, 1175].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1)) : tone(s, 110, 0.4, SAW, 0.2);
+  sfx(s, win);
 }
 
 function stepLog(s, dt) {
-  const st = s.st, ev = st.ev, any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
-  const ok = () => any('1') || pressed(s, 'START1') || pressed(s, 'START2');
+  const st = s.st, ev = st.ev;
+  const ok = () => any(s, '1') | sp(s);
   if (st.over) {
-    const nm = st.nm;
+    const nm = st.nm, c = Phaser.Display.Color.HSVToRGB((st.s.time.now / 1500) % 1, 0.8, 1).color;
+    if (st.won) st.cardBg.S(4, c), st.tag.setFillStyle(c);
     if (nm) {
-      const h = any('R') - any('L'), v = any('U') - any('D');
+      const h = any(s, 'R') - any(s, 'L'), v = any(s, 'U') - any(s, 'D');
       nm.i = MMAX(0, MMIN(2, nm.i + h));
       nm.l[nm.i] = (nm.l[nm.i] + v + 26) % 26;
       if (ok()) nm.i < 2 ? nm.i++ : saveScore(s);
       if (st.nm) drawName(st);
-    } else if (pressed(s, 'START1') || pressed(s, 'START2')) s.scene.restart();
+    } else if (sp(s)) s.scene.restart();
     return;
   }
   if (ev) {
@@ -1142,7 +1164,7 @@ function stepLog(s, dt) {
       ev.out -= dt;
       if (ev.out <= 0 || (ev.out < OUT_MS - 600 && ok())) {
         st.ev = null;
-        st.card.setVisible(false);
+        st.card.V(false);
         st.optT.forEach((t) => t.setFontSize(18));
         st.lt = DAY_MS;
         if (st.won) gameOver(s, '¡Sobrevivieron al apocalipsis!');
@@ -1150,8 +1172,12 @@ function stepLog(s, dt) {
       }
       return;
     }
+    ev.t -= dt;
+    st.bar.width = 460 * MMAX(0, ev.t / CHOICE_MS);
+    const tk = MFLOOR(ev.t / (ev.t < 5000 ? 500 : 1000));
+    if (tk != ev.tk) { ev.tk = tk; tone(s, tk % 2 ? 1400 : 1000, 0.04, SQ, 0.015 + 0.12 * (1 - ev.t / CHOICE_MS)); }
     if (ev.ration) {
-      const ppl = alive(st).slice(0, 6), n = ppl.length, v = any('D') - any('U'), h = any('R') - any('L');
+      const ppl = alive(st).slice(0, 6), n = ppl.length, v = any(s, 'D') - any(s, 'U'), h = any(s, 'R') - any(s, 'L');
       if (v) ev.cur = (ev.cur + v + n + 1) % (n + 1);
       if (h && ev.cur < n) {
         const p = ppl[ev.cur], m = (mode(p) + h + 4) % 4;
@@ -1159,24 +1185,20 @@ function stepLog(s, dt) {
         p.f = m % 2 == 0;
       }
       if (v || h) { tone(s, 520, 0.05, SQ, 0.08); drawRation(st); stat(st); }
-      ev.t -= dt;
-      st.bar.width = 660 * MMAX(0, ev.t / CHOICE_MS);
       if (ev.t <= 0 || ok()) closeRation(st);
       return;
     }
-    const step = any('D') ? 1 : any('U') ? -1 : 0;
+    const step = any(s, 'D') ? 1 : any(s, 'U') ? -1 : 0;
     if (step) {
       ev.cur = (ev.cur + step + ev.opts.length) % ev.opts.length;
       tone(s, 520, 0.05, SQ, 0.08);
       drawCard(st);
     }
-    ev.t -= dt;
-    st.bar.width = 660 * MMAX(0, ev.t / CHOICE_MS);
     if (ev.t <= 0) ev.cur = pick(ev.opts.map((o, i) => (has(st, o[1]) ? i : -1)).filter((i) => i >= 0));
     if (ev.t <= 0 || ok()) choose(s);
     return;
   }
-  if ((st.lt -= dt) <= 0 || any('1')) {
+  if ((st.lt -= dt) <= 0 || any(s, '1')) {
     st.lt = DAY_MS;
     nextDay(s);
   }
@@ -1188,15 +1210,14 @@ function gameOver(s, why) {
   st.ev = null;
   st.score = st.day * 100 + st.eggs * 300 + n * 200 + (st.won ? 2000 : 0);
   setTag(st, 'x');
-  st.card.setVisible(true);
-  st.sel.setVisible(false);
-  st.cardT.setText(why);
-  st.optT[0].setText('Días ' + st.day + '   ·   Vivos ' + n + '   ·   Easter eggs ' + st.eggs).setColor(WHT).setY(-30);
-  st.optT[1].setText('PUNTAJE  ' + st.score).setColor(GOLDS).setFontSize(26).setY(14);
-  st.optT[2].setText('');
-  st.hint.setText('START para volver').setColor(GRAYS);
+  sfx(s, st.won);
+  st.sel.V(false);
+  st.cardT.T(why);
+  st.optT[0].T('Días ' + st.day + ' · Vivos ' + n + ' · Eggs ' + st.eggs).C(WHT).setY(-30);
+  st.optT[1].T('PUNTAJE  ' + st.score).C(GOLDS).setFontSize(26).setY(14);
+  st.optT[2].T('');
+  st.hint.T('START para volver').C(GRAYS);
   st.bar.width = 0;
-  layoutLog(st);
   if (qualifies(st.P.length, st.score)) {
     st.nm = { l: [0, 0, 0], i: 0 };
     drawName(st);
@@ -1206,7 +1227,7 @@ function gameOver(s, why) {
 const ABC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 function drawName(st) {
   const { l, i } = st.nm;
-  st.hint.setText('INICIALES  ' + l.map((c, j) => (j == i ? '[' + ABC[c] + ']' : ' ' + ABC[c] + ' ')).join('') + '   ↑↓ letra  ←→ mover  B1 ok').setColor(GOLDS).setFontSize(18);
+  st.hint.T('INICIALES  ' + l.map((c, j) => (j == i ? '[' + ABC[c] + ']' : ' ' + ABC[c] + ' ')).join('') + '  ↑↓ ←→  B1 ok').C(GOLDS).setFontSize(18);
 }
 
 function saveScore(s) {
@@ -1214,26 +1235,26 @@ function saveScore(s) {
   st.nm = null;
   RANK[np] = clean([...RANK[np], row]);
   store().set(RK, RANK).catch(() => {});
-  st.hint.setText('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P   ·   START para volver').setColor(TEALS);
-  [523, 659, 784, 1047].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1));
+  st.hint.T('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P · START: volver').C(TEALS);
+  arp(s, [523, 659, 784, 1047]);
 }
 
 function update(t, dt) {
   const s = this, st = s.st;
   dt = MMIN(dt, 50);
-  music(s, st.ph == 'title' || st.ph == 'log' ? 0 : st.ph == 'loot' ? 1 : -1, ...(st.ph == 'loot' ? [0.4 + st.left / 100, st.left < 20 ? 3 : st.left < 40 ? 2 : 1] : [1]));
+  music(s, ['title', 'loot', 'log'].indexOf(st.ph), ...(st.ph == 'loot' ? [0.4 + st.left / 100, st.left < 20 ? 3 : st.left < 40 ? 2 : 1] : []));
   if (st.ph == 'title') {
-    const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
-    const h = any('R') - any('L');
+    const h = any(s, 'R') - any(s, 'L');
     if (h) { st.mi = h > 0 ? 1 : 0; drawMode(s); tone(s, 520, 0.05, SQ, 0.08); }
     if (pressed(s, 'START1')) start(s, 1);
     else if (pressed(s, 'START2')) start(s, 2);
-    else if (any('1')) start(s, st.mi + 1);
+    else if (any(s, '1')) start(s, st.mi + 1);
   } else if (st.ph == 'alert') {
     st.at += dt;
-    if (st.at > 5000 || (st.at > 500 && ['START1', 'START2', 'P1_1', 'P2_1'].some((c) => pressed(s, c)))) {
+    if (st.at > 800 && any(s, '1') | sp(s)) {
       st.alert.destroy();
       st.ph = 'loot';
+      siren(s);
     }
   } else if (st.ph == 'cine') {
     cine(s, dt);
@@ -1242,7 +1263,8 @@ function update(t, dt) {
     st.left -= dt / 1000;
     for (const p of st.P) stepPlayer(s, p, t, dt);
     if (st.ni < NOTIFS.length && st.left <= NOTIFS[st.ni][0]) notify(s, ...NOTIFS[st.ni++].slice(1));
-    if (st.left < 10 && Math.ceil(st.left) != st.tk) { st.tk = Math.ceil(st.left); tone(s, 1200, 0.04, SQ, 0.08); }
+    const sec = Math.ceil(st.left);
+    if (st.left < 10 && sec != st.tk) { st.tk = sec; tone(s, 1200, 0.04, SQ, 0.08); }
     if (st.left < 20 && (st.sh -= dt) <= 0) {
       const k = (20 - st.left) / 20;
       st.sh = 1500 - 900 * k + rnd(600);
@@ -1250,15 +1272,15 @@ function update(t, dt) {
       for (const p of st.P) st.dust.explode(20 + 40 * k, p.x, p.y + fy(p.f));
       rumble(s, 0.6, 0.15 + 0.35 * k);
     }
-    st.timer.setText(MMAX(0, Math.ceil(st.left))).setColor(st.left < 10 ? REDS : GOLDS);
-    if ((st.msgT -= dt) <= 0) st.msg.setText('');
+    st.timer.T(MMAX(0, sec)).C(st.left < 10 ? REDS : GOLDS);
+    if ((st.msgT -= dt) <= 0) st.msg.T('');
     const inBunker = st.P.every((p) => p.f == 0);
-    if (inBunker && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
+    if (inBunker && st.left < LOOT_S - 1 && sp(s)) st.left = 0;
     if (st.left <= 0) endLoot(s);
   } else if (st.ph == 'log') {
     stepLog(s, dt);
   }
-  s.ctl.pressed = Object.create(null);
+  s.ctl.pressed = {};
 }
 
 
@@ -1282,12 +1304,13 @@ function tone(s, f, d, type, v, at = 0) {
 }
 
 const SONGS = [
-  [0.12, 'G.GGGFGIK.KKKIKLN.NNNLKIG...B...D.DDDBDFG.GGGFGIK.I.G.F.G.......', '/6/6/6/6*1*1/6/64;4;/6/6*1*1/6/6', 2],
+  [0.2, 'SNSVVSOSQUXVR.N.SNVXZXUSOSXVURN.GJGLJLN.LJIEFILNSQNSVUSONOQSRNRU', ';G;G7C7C9E9E6B6B;G;G7C7C4@4@6B6B', 1],
   [0.2, 'GJNJILNL', '/./.2.1.', 1],
+  [0.42, 'NQU.VUQ.USQSP.L.NQUZXVU.SPM.N...', '6=299@4;6=29186=', 2],
 ];
 let MU = { k: -1 };
 const hz = (c, tr = 0) => 440 * 2 ** ((c.charCodeAt(0) - 78 + tr) / 12);
-function music(s, k, sp, ly = 2) {
+function music(s, k, sp = 1, ly = 2) {
   const c = s.sound.context;
   if (!c || c.state != 'running') return;
   if (k != MU.k) MU = { k, i: 0, t: c.currentTime + 0.1 };
@@ -1299,14 +1322,31 @@ function music(s, k, sp, ly = 2) {
     if (ly > 2) MU.u ??= MU.i;
     const tr = ly > 2 ? MMIN(8, ((MU.i - MU.u) / 8) | 0) : 0;
     if (ly > 1 && m != '.') tone(s, hz(m, tr), d * sp * 0.9, TRI, 0.16, at);
+    else if (m == '.' && (MU.i / mel.length) & 1) tone(s, hz(b, [12, 19, 24, 19][MU.i % 4]), d * sp * 0.8, SQ, 0.03, at);
     if (MU.i % ev == 0 && b != '.') tone(s, hz(b, tr), d * sp * ev * 0.8, SQ, 0.04, at);
-    if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, SQ, 0.02, at);
+    if (k == 1 && MU.i % 2 == 0) tone(s, 3000, 0.02, SQ, 0.02, at);
     if (ly > 2 && MU.i % 4 == 0) tone(s, hz('Z', tr), d * sp, SQ, 0.03, at);
     MU.i++;
     MU.t += d * sp;
   }
 }
 
+const arp = (s, a, g = 0.1) => a.forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * g));
+function siren(s) {
+  const c = ac(s), t = c?.currentTime;
+  if (c) for (const m of [1, 1.19]) {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = SQ;
+    [80, 360, 360, 55].forEach((f, i) => o.frequency.linearRampToValueAtTime(f * m, t + [0, 1.2, 1.8, 3][i]));
+    g.gain.value = 0.014;
+    g.gain.setValueAtTime(0.014, t + 2);
+    g.gain.linearRampToValueAtTime(0, t + 3);
+    o.connect(g).connect(c.destination);
+    o.start(t);
+    o.stop(t + 3);
+  }
+}
+const sfx = (s, w) => (w ? arp(s, [784, 1568], 0.12) : (tone(s, 90, 0.35, TRI, 0.5), tone(s, 55, 0.25, SQ, 0.12)));
 const alarm = (s, n = 6) => { for (let i = 0; i < n; i++) tone(s, i % 2 ? 960 : 1280, 0.28, SQ, 0.1, i * 0.3); };
 
 function rumble(s, d, v) {
@@ -1327,24 +1367,20 @@ function rumble(s, d, v) {
 
 
 function createControls(scene) {
-  scene.ctl = { held: Object.create(null), pressed: Object.create(null) };
+  scene.ctl = { held: {}, pressed: {} };
   const onKeyDown = (event) => {
-    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
+    const code = KEYBOARD_TO_ARCADE[('' + event.key).toLowerCase()];
     ac(scene);
     if (!code) return;
     if (!scene.ctl.held[code]) scene.ctl.pressed[code] = true;
     scene.ctl.held[code] = true;
   };
   const onKeyUp = (event) => {
-    const code = KEYBOARD_TO_ARCADE[normalizeIncomingKey(event.key)];
+    const code = KEYBOARD_TO_ARCADE[('' + event.key).toLowerCase()];
     if (code) scene.ctl.held[code] = false;
   };
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
-  scene.events.once('shutdown', () => {
-    window.removeEventListener('keydown', onKeyDown);
-    window.removeEventListener('keyup', onKeyUp);
-  });
 }
 
 function pressed(scene, code) {
@@ -1353,7 +1389,4 @@ function pressed(scene, code) {
   return v;
 }
 
-function normalizeIncomingKey(key) {
-  return String(key).toLowerCase();
-}
 })();

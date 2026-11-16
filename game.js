@@ -833,12 +833,12 @@ const ENDINGS = [
 const alive = (st) => st.ppl.filter((p) => p.st < 3);
 const person = (n, k) => ({ n, k, st: 0, w: 1, f: 1, th: 0, hu: 0 }); // w/f: recibe agua/comida
 const has = (st, req) => !req || req.split('+').every((k) => st.inv[k] > 0 || st.ppl.some((p) => p.k == k && p.st < 3));
-const STATE = ['sano', 'herido', 'enfermo', 'muerto'];
+const STATE = ['sano', 'herido', 'enfermo', 'muerto', 'se fue']; // >= 3: ya no está en el bunker
 const LIM = { w: 5, f: 12 }; // días sin agua / sin comida antes de morir
 const ENDING_DAY = 10; // desde aquí puede aparecer un final (10 % diario + bonus de radio)
 
 const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
-const SC = ['#2ec4a0', '#ff9a3b', '#ffd23b', '#666']; // color por estado
+const SC = ['#2ec4a0', '#ff9a3b', '#ffd23b', '#666', '#666']; // color por estado
 const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', 0xffd23b], x: ['FIN', 0x9b7bff] };
 const names = (req) => req.split('+').map((k) => ITEMS[k][0]).join(' + ');
 
@@ -959,7 +959,10 @@ function apply(st, eff) {
     else if (e == 'r') st.won = 1;
     else if (e[0] == '#') st.fl[k] = 1;
     else if (e[0] == '+') ITEMS[k][2] == 'p' ? st.ppl.push(person(ITEMS[k][0], k)) : (st.inv[k] = (st.inv[k] || 0) + 1);
-    else if (e[0] == '-') st.inv[k] = Math.max(0, (st.inv[k] || 0) - 1);
+    else if (e[0] == '-') {
+      const p = alive(st).find((q) => q.k == k); // quitar a una persona (devolver el gato): se va del bunker
+      p ? (p.st = 4) : (st.inv[k] = Math.max(0, (st.inv[k] || 0) - 1));
+    }
   }
 }
 

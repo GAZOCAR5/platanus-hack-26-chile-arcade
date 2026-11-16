@@ -2,6 +2,8 @@
 (() => {
 const W = 800, H = 600, T = 32, GW = 50, GH = 15, NF = 14, FG = GH * T + 240, LOOT_S = 60, SLOTS = 6;
 const GOLD = 0xffd23b, GOLDS = '#ffd23b', SQ = 'square', TRI = 'triangle', WHITE = 0xffffff, WHT = '#fff', BLK = '#000', ORS = '#ff9a3b';
+const MRND = Math.random, MMAX = Math.max, MMIN = Math.min, MFLOOR = Math.floor, REDS = '#ff4a4a', TEALS = '#2ec4a0', GRAYS = '#999', INK = 0x111111, SAW = 'sawtooth', RED = 0xd62828, SHADE = '#000000aa';
+const rect = (s, ...a) => s.add.rectangle(...a);
 
 const CABINET_KEYS = {
   P1_U: ['w'],
@@ -70,7 +72,7 @@ const FC = [0x2b2d55, ...THEMES.map((t) => t[1]), 0x4a4f58, 0xd0a030];
 const PC = [0xff6b4a, 0x9b7bff];
 const FAMILY_FLOOR = 3;
 
-const rnd = (n) => Math.floor(Math.random() * n);
+const rnd = (n) => MFLOOR(MRND() * n);
 const pick = (a) => a[rnd(a.length)];
 const fy = (f) => (NF - 1 - f) * FG;
 const fl = (f) => (f == 0 ? '-3' : f == NF - 1 ? 'PH' : '' + f);
@@ -81,7 +83,7 @@ const HF = 'Impact,"Arial Black",sans-serif';
 const big = (s, x, y, str, size, color, sh = '#d62828') =>
   txt(s, x, y, str, size, color, HF).setStroke(BLK, size / 7).setShadow(size / 16, size / 16, sh, 0, true, true);
 const crt = (s) => { const g = s.add.graphics().fillStyle(0, 0.22); for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1); return g; };
-const stars = (g, n, h) => { for (let i = 0; i < n; i++) g.fillStyle(WHITE, Math.random() * 0.7).fillRect(rnd(W), rnd(h), 2, 2); return g; };
+const stars = (g, n, h) => { for (let i = 0; i < n; i++) g.fillStyle(WHITE, MRND() * 0.7).fillRect(rnd(W), rnd(h), 2, 2); return g; };
 
 new Phaser.Game({
   type: Phaser.AUTO,
@@ -108,21 +110,21 @@ function create() {
   }
   g.fillStyle(0x050409).fillRect(0, 556, W, 44);
   s.st.mi = 0;
-  s.modeB = [0, 1].map((i) => s.add.rectangle(W / 2 + (i ? 130 : -130), 262, 230, 66));
+  s.modeB = [0, 1].map((i) => rect(s, W / 2 + (i ? 130 : -130), 262, 230, 66));
   s.modeT = [0, 1].map((i) =>
     big(s, W / 2 + (i ? 130 : -130), 262, (i ? '2 JUGADORES' : '1 JUGADOR') + '\n' + (i ? 'START 2' : 'START 1'), 22, WHT, BLK).setOrigin(0.5).setAlign('center'));
   const go = big(s, W / 2, 322, '◄ ►  ELEGIR        B1  ¡A CORRER!', 20, WHT, BLK).setOrigin(0.5);
   s.rankT = [0, 1].map((i) => txt(s, 130 + i * 340, 364, '', 16, '#e8e6ff').setLineSpacing(6));
   s.title = s.add.container(0, 0, [
     g,
-    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, '#2ec4a0', BLK).setOrigin(0.5),
+    big(s, W / 2, 40, 'PLATANUS HACK 26  ·  ARCADE', 16, TEALS, BLK).setOrigin(0.5),
     big(s, W / 2, 112, '¡AGARRA LA TELE!', 84, GOLDS).setOrigin(0.5),
     txt(s, W / 2, 190, 'Santiago, 03:34. Viene el megaterremoto.\nTienes 60 segundos para bajar al bunker con lo que puedas.', 16, '#d8d4ff')
       .setOrigin(0.5).setAlign('center').setStroke(BLK, 4),
     ...s.modeB,
     ...s.modeT,
     go,
-    ...[0, 1].map((i) => s.add.rectangle(250 + i * 340, 412, 290, 124, 0, 0.7).setStrokeStyle(2, GOLD)),
+    ...[0, 1].map((i) => rect(s, 250 + i * 340, 412, 290, 124, 0, 0.7).setStrokeStyle(2, GOLD)),
     ...[0, 1].map((i) => big(s, 250 + i * 340, 350, 'RANKING ' + (i + 1) + 'P', 20, GOLDS).setOrigin(0.5)),
     ...s.rankT,
     txt(s, W / 2, 578, 'Joystick: moverse   B1: tomar   B2: soltar', 14, '#aaa').setOrigin(0.5),
@@ -139,7 +141,7 @@ function create() {
 }
 
 function drawMode(s) {
-  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? 0xd62828 : 0x15121f).setStrokeStyle(3, i == s.st.mi ? GOLD : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
+  s.modeB.forEach((b, i) => b.setFillStyle(i == s.st.mi ? RED : 0x15121f).setStrokeStyle(3, i == s.st.mi ? GOLD : 0x3a3550).setScale(i == s.st.mi ? 1.06 : 1));
   s.modeT.forEach((t, i) => t.setColor(i == s.st.mi ? WHT : '#6a6680'));
 }
 
@@ -228,13 +230,13 @@ function genFloor(f, extra) {
   let n = 0;
   for (const [y0, y1, dr] of [[1, 4, 5], [10, 13, 9]]) {
     for (let x = 5; x <= 41; n++) {
-      const x1 = Math.min(x + 8 + rnd(5), 47);
+      const x1 = MMIN(x + 8 + rnd(5), 47);
       if (x1 - x < 6) break;
       const family = f == FAMILY_FLOOR && n == 0, ti = family ? 0 : 1 + rnd(THEMES.length - 1), th = THEMES[ti];
       open(x, y0, x1, y1, ti + 1);
       const sx = x + 3 + rnd(x1 - x - 5);
       const top = dr == 5, by = top ? y0 : y1, dir = top ? 1 : -1, [ra, rb] = th[3].split(' ');
-      rugs.push([((x + sx) / 2) * T, (top ? y0 + 3 : y0 + 1) * T, (sx - x) * T * 0.7, 1.6 * T, (Math.random() - 0.5) * 0.3]);
+      rugs.push([((x + sx) / 2) * T, (top ? y0 + 3 : y0 + 1) * T, (sx - x) * T * 0.7, 1.6 * T, (MRND() - 0.5) * 0.3]);
       for (let y = y0; y <= y1; y++) set(sx, y, 1);
       set(sx, top ? y0 + 2 + rnd(2) : y0 + rnd(2), 0, ti + 1);
       fill(x, sx - 1, by, dir, ra);
@@ -243,9 +245,9 @@ function genFloor(f, extra) {
       do dx = x + 1 + rnd(x1 - x - 1); while (dx == sx);
       set(dx, dr, 0, ti + 1);
       const k = family ? 3 : ti == 7 ? 1 : 2 + rnd(3);
-      for (let i = 0; i < k; i++) put(Math.random() < 0.6 ? pick(th[2]) : pick(COMMON), free(x, y0, x1, y1));
+      for (let i = 0; i < k; i++) put(MRND() < 0.6 ? pick(th[2]) : pick(COMMON), free(x, y0, x1, y1));
       if (family) { put('abuela', free(x, y0, x1, y1)); put('perro', free(x, y0, x1, y1)); }
-      if (Math.random() < (f / NF) * 0.5) put(pick(EGGS), free(x, y0, x1, y1));
+      if (MRND() < (f / NF) * 0.5) put(pick(EGGS), free(x, y0, x1, y1));
       if (n == 0) for (const p of extra[f] || []) put(p, free(x, y0, x1, y1));
       labels.push([dx, dr == 5 ? 6 : 8, fl(f) + 'ABCDEFGH'[n] + ' ' + th[0]]);
       x = x1 + 2;
@@ -262,7 +264,7 @@ function reachableAll(F, f) {
     const i = q.pop();
     for (const j of [i - 1, i + 1, i - GW, i + GW]) if (!seen[j] && F.g[j] != 1 && F.g[j] < 4) { seen[j] = 1; q.push(j); }
   }
-  return F.items.every((it) => seen[Math.floor(it.y / T) * GW + Math.floor(it.x / T)]) && [6, 8].every((r) => seen[r * GW + 1] || F.g[r * GW + 1] == 1);
+  return F.items.every((it) => seen[MFLOOR(it.y / T) * GW + MFLOOR(it.x / T)]) && [6, 8].every((r) => seen[r * GW + 1] || F.g[r * GW + 1] == 1);
 }
 
 function paint(g, rec, ol) {
@@ -314,7 +316,7 @@ function drawFloor(s, f, F) {
   const gr = s.make.graphics({ add: false });
   gr.fillStyle(0x0e0b1e).fillRect(0, 0, GW * T, GH * T);
   for (let i = 0; i < GW * GH; i++) {
-    const c = F.g[i], x = (i % GW) * T, y = Math.floor(i / GW) * T;
+    const c = F.g[i], x = (i % GW) * T, y = MFLOOR(i / GW) * T;
     if (c == 1) {
       if (F.g[i + GW] != 1 && i + GW < GW * GH) gr.fillStyle(0x4a3f8a).fillRect(x, y + T - 9, T, 9).fillStyle(0x8a7fe0).fillRect(x, y + T - 9, T, 2);
       continue;
@@ -339,7 +341,7 @@ function drawFloor(s, f, F) {
     gr.restore();
   }
   if (!f) {
-    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? GOLD : 0x111111).fillRect(2 * T, y, 8, 8);
+    for (let y = 4 * T; y < 9 * T; y += 8) gr.fillStyle((y / 8) % 2 ? GOLD : INK).fillRect(2 * T, y, 8, 8);
     for (const x of [6, 11, 15]) gr.fillStyle(0xff3030).fillCircle(x * T, T - 5, 4).fillStyle(0xff3030, 0.2).fillCircle(x * T, T - 5, 12);
   }
   gr.generateTexture('f' + f, GW * T, GH * T);
@@ -438,15 +440,15 @@ function start(s, np) {
   }
   s.tweens.add({ targets: st.items.map((it) => it.h), alpha: 0.35, duration: 700, yoyo: true, repeat: -1 });
 
-  s.UL.add(s.add.rectangle(720, 0, 80, H, 0x0d0d12).setOrigin(0));
+  s.UL.add(rect(s, 720, 0, 80, H, 0x0d0d12).setOrigin(0));
   st.timer = txt(s, 760, 8, '60', 30, GOLDS).setOrigin(0.5, 0);
   s.UL.add(st.timer);
   for (let f = 0; f < NF; f++) {
-    s.UL.add(s.add.rectangle(724, hy(f), 72, 34, f == 0 ? 0x6b1d1d : f == NF - 1 ? 0x8a6d1a : 0x2a2a36).setOrigin(0));
+    s.UL.add(rect(s, 724, hy(f), 72, 34, f == 0 ? 0x6b1d1d : f == NF - 1 ? 0x8a6d1a : 0x2a2a36).setOrigin(0));
     s.UL.add(txt(s, 727, hy(f) + 2, fl(f), 10, '#ffffff88'));
   }
   st.bunker = [];
-  st.msg = txt(s, 360, 92, '', 16, GOLDS).setOrigin(0.5).setBackgroundColor('#000000aa');
+  st.msg = txt(s, 360, 92, '', 16, GOLDS).setOrigin(0.5).setBackgroundColor(SHADE);
   s.UL.add(st.msg);
 
   const F3 = st.floors[FAMILY_FLOOR];
@@ -454,10 +456,10 @@ function start(s, np) {
   for (let i = 0; i < np; i++) {
     let x, y;
     do { x = 6 + rnd(6); y = 2 + rnd(2); } while (F3.g[y * GW + x] != 0);
-    const bag = s.add.rectangle(-12, 0, 8, 18, 0x7a4a2c).setStrokeStyle(2, 0x111111);
-    const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).setStrokeStyle(1, 0x111111));
-    const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, 0x111111).strokeEllipse(0, 0, 16, 28)
-      .fillStyle(0xf0c8a8).fillCircle(1, 0, 7).lineStyle(1.5, 0x111111).strokeCircle(1, 0, 7)
+    const bag = rect(s, -12, 0, 8, 18, 0x7a4a2c).setStrokeStyle(2, INK);
+    const hands = [-13, 13].map((hy2) => s.add.circle(3, hy2, 3.5, 0xf0c8a8).setStrokeStyle(1, INK));
+    const body = s.add.graphics().fillStyle(PC[i]).fillEllipse(0, 0, 16, 28).lineStyle(2, INK).strokeEllipse(0, 0, 16, 28)
+      .fillStyle(0xf0c8a8).fillCircle(1, 0, 7).lineStyle(1.5, INK).strokeCircle(1, 0, 7)
       .fillStyle(i ? 0xf2f2f2 : GOLD).fillEllipse(4, 0, 18, 20).strokeEllipse(4, 0, 18, 20).fillCircle(-1, 0, 8.5).strokeCircle(-1, 0, 8.5)
       .fillStyle(0, 0.25).fillRect(-9, -1, 17, 2).fillStyle(WHITE, 0.5).fillEllipse(-3, -4, 6, 4);
     const o = s.add.container(0, 0, [s.add.ellipse(0, 0, 36, 34, 0, 0.35), bag, ...hands, body]).setRotation(Math.PI / 2).setDepth(2);
@@ -465,9 +467,9 @@ function start(s, np) {
     const p = {
       k: 'P' + (i + 1) + '_', f: FAMILY_FLOOR, x: x * T + T / 2, y: y * T + T / 2, bag: [], alive: 1, lock: 0, o, bg: bag, hands,
       dot: s.add.circle(740 + i * 22, 0, 6, PC[i]).setStrokeStyle(2, WHITE),
-      lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor('#000000aa').setDepth(5),
+      lt: txt(s, 0, 0, '', 12).setOrigin(0.5, 1).setBackgroundColor(SHADE).setDepth(5),
       dk: s.add.image(0, 0, 'dark').setDepth(3),
-      bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor('#000000aa'),
+      bt: txt(s, vx + 8, H - 24, '', 13).setBackgroundColor(SHADE),
     };
     s.WL.add([o, p.lt]);
     s.UL.add([p.dot, p.bt]);
@@ -477,7 +479,7 @@ function start(s, np) {
     p.cam = cam;
     st.P.push(p);
   }
-  if (np == 2) s.UL.add(s.add.rectangle(358, 0, 4, H, WHITE).setOrigin(0));
+  if (np == 2) s.UL.add(rect(s, 358, 0, 4, H, WHITE).setOrigin(0));
   for (const p of st.P) for (const q of st.P) if (p != q) p.cam.ignore(q.dk);
   st.dust = s.add.particles(0, 0, 'px', { emitZone: { source: new Phaser.Geom.Rectangle(-320, -280, 640, 560) }, speedY: { min: 30, max: 90 },
     lifespan: 1400, scale: { start: 1, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: 0xbbaa99, emitting: false }).setDepth(2.5);
@@ -491,7 +493,7 @@ function start(s, np) {
   const ph = s.add.graphics().fillStyle(0x000000, 0.85).fillRect(0, 0, W, H)
     .fillStyle(0x1b1b22).fillRoundedRect(250, 60, 300, 480, 36)
     .fillStyle(0x0a0a0f).fillRoundedRect(262, 72, 276, 456, 26)
-    .fillStyle(0xd62828).fillRoundedRect(276, 180, 248, 210, 14);
+    .fillStyle(RED).fillRoundedRect(276, 180, 248, 210, 14);
   st.alert = s.add.container(0, 0, [
     ph,
     txt(s, 400, 120, '03:34', 44).setOrigin(0.5),
@@ -518,7 +520,7 @@ const NOTIFS = [
 function notify(s, from, m) {
   const red = from == 'ALERTA';
   const c = s.add.container(360, -40, [
-    s.add.rectangle(0, 0, 440, 52, red ? 0xd62828 : 0xf2f2f7).setStrokeStyle(2, 0x000000),
+    rect(s, 0, 0, 440, 52, red ? RED : 0xf2f2f7).setStrokeStyle(2, 0x000000),
     txt(s, -208, -21, from, 13, red ? GOLDS : '#d62828'),
     txt(s, -208, -3, m, 15, red ? WHT : '#111'),
   ]);
@@ -529,7 +531,7 @@ function notify(s, from, m) {
 
 const used = (p) => p.bag.reduce((a, it) => a + ITEMS[it.k][1], 0);
 const tileAt = (f, x, y) => {
-  const tx = Math.floor(x / T), ty = Math.floor(y / T);
+  const tx = MFLOOR(x / T), ty = MFLOOR(y / T);
   return tx < 0 || ty < 0 || tx >= GW || ty >= GH ? 1 : s_floors[f].g[ty * GW + tx];
 };
 let s_floors;
@@ -578,7 +580,7 @@ function stepPlayer(s, p, t, dt) {
 
   const near = nearest(st, p, 30);
   if (pressed(s, p.k + '1') && near) {
-    if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, 'sawtooth', 0.15); }
+    if (used(p) + ITEMS[near.k][1] > SLOTS) { say(st, 'Mochila llena: suelta algo (B2) o baja al bunker'); tone(s, 140, 0.2, SAW, 0.15); }
     else { near.taken = 1; near.o.setVisible(false); near.h.setVisible(false); st.spark.explode(14, near.o.x, near.o.y); p.bag.push(near); tone(s, 880, 0.08, TRI, 0.15); }
   }
   if (pressed(s, p.k + '2') && p.bag.length) {
@@ -591,9 +593,9 @@ function stepPlayer(s, p, t, dt) {
 
   const wy = p.y + fy(p.f), show = nearest(st, p, 40), mv = vx || vy, scared = st.left < 20;
   if (mv) p.o.rotation = Phaser.Math.Angle.RotateTo(p.o.rotation, Math.atan2(vy, vx), 0.25);
-  const sw = mv ? Math.sin(t / 70) * 4 : 0, u = used(p), jit = scared ? Math.random() - 0.5 : 0;
+  const sw = mv ? Math.sin(t / 70) * 4 : 0, u = used(p), jit = scared ? MRND() - 0.5 : 0;
   p.o.setPosition(p.x + jit, wy + jit);
-  p.dk.setPosition(p.x, wy).setScale(p.bag.some((it) => it.k == 'linterna') ? 1.6 : 1).setAlpha(scared ? 0.85 + Math.random() * 0.15 : 1);
+  p.dk.setPosition(p.x, wy).setScale(p.bag.some((it) => it.k == 'linterna') ? 1.6 : 1).setAlpha(scared ? 0.85 + MRND() * 0.15 : 1);
   p.hands[0].x = 3 + sw;
   p.hands[1].x = 3 - sw;
   p.bg.setSize(8 + u, 18 + u * 1.5).setPosition(-12 - u / 2, 0);
@@ -610,7 +612,7 @@ function endLoot(s) {
   st.ct = 0;
   st.mag = big(s, W / 2, H / 2, '6.0', 130, WHT).setOrigin(0.5);
   st.magL = big(s, W / 2, H / 2 - 120, 'MAGNITUD', 24, ORS, BLK).setOrigin(0.5);
-  st.cine = s.add.container(0, 0, [s.add.rectangle(-100, -100, W + 200, H + 200, 0x000000).setOrigin(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
+  st.cine = s.add.container(0, 0, [rect(s, -100, -100, W + 200, H + 200, 0x000000).setOrigin(0), stars(s.add.graphics(), 140, H), st.magL, st.mag]);
   s.UL.add(st.cine);
   rumble(s, 7, 0.7);
 }
@@ -619,10 +621,10 @@ function cine(s, dt) {
   const st = s.st, ct = (st.ct += dt);
   if (ct < 4500) {
     const v = 6 + 4 * (ct / 4500) ** 2;
-    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).setColor(v > 8 ? '#ff4a4a' : v > 7 ? GOLDS : WHT);
+    st.mag.setText(v.toFixed(1)).setScale(1 + (v - 6) * 0.12).setColor(v > 8 ? REDS : v > 7 ? GOLDS : WHT);
     st.hud.shake(100, 0.001 * (v - 5) ** 2);
   } else if (ct < 6000) {
-    st.mag.setText(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').setColor('#ff4a4a');
+    st.mag.setText(rnd(2) ? 10 + rnd(90) + '.' + rnd(10) : '?' + rnd(10) + '.?').setColor(REDS);
     st.hud.shake(100, 0.03);
   } else if (ct < 7000) {
     st.mag.setText('???');
@@ -633,7 +635,7 @@ function cine(s, dt) {
     st.earth = 1;
     earth(s);
     rumble(s, 1, 1);
-    tone(s, 55, 1.2, 'sawtooth', 0.5);
+    tone(s, 55, 1.2, SAW, 0.5);
   }
   if (ct > 8800 && !st.apo) {
     st.apo = big(s, W / 2, 515, 'COMIENZA EL APOCALIPSIS', 46, '#ff6b4a', BLK).setOrigin(0.5).setAlpha(0);
@@ -663,12 +665,12 @@ function earth(s) {
   half(-1, [[55, -30, 30], [40, 50, 18]]);
   half(1, [[50, -45, 26], [62, 38, 22], [30, 8, 12]]);
   for (let i = 0; i < 50; i++) {
-    const a = Math.random() * 7, d = 150 + rnd(400);
-    add(s.add.rectangle(X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, GOLD])),
+    const a = MRND() * 7, d = 150 + rnd(400);
+    add(rect(s, X, Y, 3 + rnd(12), 3 + rnd(12), pick([0x2a6fdb, 0x3bb36b, 0x7a4a2a, 0xff6b1a, GOLD])),
       { x: X + Math.cos(a) * d, y: Y + Math.sin(a) * d, angle: rnd(900), alpha: 0, duration: 1500 + rnd(2000), ease: 'Cubic.easeOut' });
   }
   for (let i = 0; i < 2; i++) add(s.add.circle(X, Y, r).setStrokeStyle(8 - i * 4, i ? WHITE : GOLD), { scale: 5, alpha: 0, duration: 1100, delay: i * 220 });
-  add(s.add.rectangle(0, 0, W, H, WHITE).setOrigin(0), { alpha: 0, duration: 700 });
+  add(rect(s, 0, 0, W, H, WHITE).setOrigin(0), { alpha: 0, duration: 700 });
 }
 
 
@@ -825,7 +827,7 @@ const ENDING_DAY = 10;
 
 const DAY_MS = 2600, CHOICE_MS = 25000, OUT_MS = 3800;
 const SEV = [0x2ec4a0, GOLD, 0xff4a4a, 0x666666], hx = (n) => '#' + n.toString(16).padStart(6, '0');
-const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', 0xd62828], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', GOLD], x: ['FIN', 0x9b7bff] };
+const KIND = { q: ['RACIONES', 0x3b9cff], r: ['RÉPLICA', RED], s: ['SAQUEO', 0xff7a1a], m: ['EVENTO', 0x2ec4a0], f: ['FINAL', GOLD], x: ['FIN', 0x9b7bff] };
 const names = (req) => req.split('+').map((k) => ITEMS[k][0]).join(' + ');
 
 function startLog(s) {
@@ -857,7 +859,7 @@ function startLog(s) {
     big(s, 20, 6, 'BITÁCORA DEL BUNKER', 28, GOLDS)]);
   st.logC = s.add.container();
   st.statC = s.add.container(0, 0, [
-    s.add.rectangle(516, 56, 268, 250, 0x15122a).setOrigin(0).setStrokeStyle(2, 0x3b9cff),
+    rect(s, 516, 56, 268, 250, 0x15122a).setOrigin(0).setStrokeStyle(2, 0x3b9cff),
     big(s, 532, 64, 'AGUA', 14, '#3b9cff', BLK),
     big(s, 652, 64, 'COMIDA', 14, ORS, BLK),
     txt(s, 532, 136, 'PERSONA', 11, '#8a86a8'),
@@ -867,20 +869,20 @@ function startLog(s) {
   st.aT = big(s, 532, 80, '', 30, '#3b9cff', BLK);
   st.cT = big(s, 652, 80, '', 30, ORS, BLK);
   st.spT = [532, 652].map((x) => txt(s, x, 112, '', 12));
-  st.rbar = [532, 652].map((x) => s.add.rectangle(x, 129, 0, 4).setOrigin(0));
-  st.toolT = txt(s, 532, 0, '', 13, '#999').setWordWrapWidth(236);
+  st.rbar = [532, 652].map((x) => rect(s, x, 129, 0, 4).setOrigin(0));
+  st.toolT = txt(s, 532, 0, '', 13, GRAYS).setWordWrapWidth(236);
   st.statC.add([st.dayT, st.aT, st.cT, ...st.spT, ...st.rbar, st.toolT]);
   st.card = s.add.container(W / 2, 452).setVisible(false);
-  st.cardBg = s.add.rectangle(0, 0, 680, 280, 0x16131f).setStrokeStyle(3, GOLD);
-  st.tag = s.add.rectangle(-324, -128, 110, 26, GOLD).setOrigin(0);
+  st.cardBg = rect(s, 0, 0, 680, 280, 0x16131f).setStrokeStyle(3, GOLD);
+  st.tag = rect(s, -324, -128, 110, 26, GOLD).setOrigin(0);
   st.tagT = txt(s, -269, -115, '', 17, BLK, HF).setOrigin(0.5);
   st.cardT = txt(s, -324, -90, '', 19).setWordWrapWidth(648);
-  st.sel = s.add.rectangle(-330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, GOLD);
+  st.sel = rect(s, -330, 0, 660, 34, 0x2c2c38).setOrigin(0, 0.5).setStrokeStyle(2, GOLD);
   st.optT = [0, 1, 2].map(() => txt(s, -310, 0, '', 18).setOrigin(0, 0.5).setWordWrapWidth(620));
-  st.hint = txt(s, -324, 104, '', 14, '#999');
+  st.hint = txt(s, -324, 104, '', 14, GRAYS);
   st.rT = [0, 1, 2, 3, 4, 5, 6].map((i) => txt(s, -310, -54 + i * 22, '', 16).setOrigin(0, 0.5));
-  st.bar = s.add.rectangle(-330, 128, 660, 6, GOLD).setOrigin(0, 0.5);
-  st.card.add([s.add.rectangle(8, 8, 680, 280, 0, 0.6), st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
+  st.bar = rect(s, -330, 128, 660, 6, GOLD).setOrigin(0, 0.5);
+  st.card.add([rect(s, 8, 8, 680, 280, 0, 0.6), st.cardBg, st.tag, st.tagT, st.cardT, st.sel, ...st.optT, ...st.rT, st.hint, st.bar]);
   s.UL.add([st.logC, st.statC, st.card, crt(s)]);
 
   const n = alive(st).length;
@@ -912,10 +914,10 @@ function stat(st) {
   const s = st.s, ppl = alive(st);
   st.dayT.setText('DÍA ' + st.day);
   [st.a, st.c].forEach((v, i) => {
-    const n = ppl.filter((p) => (i ? p.f : p.w)).length, d = n ? Math.floor(v / n) : 9, c = SEV[d > 3 ? 0 : d > 1 ? 1 : 2];
+    const n = ppl.filter((p) => (i ? p.f : p.w)).length, d = n ? MFLOOR(v / n) : 9, c = SEV[d > 3 ? 0 : d > 1 ? 1 : 2];
     [st.aT, st.cT][i].setText(v).setColor(hx(c));
     st.spT[i].setText(!n ? 'nadie recibe' : !d ? 'no alcanza' : d + (d == 1 ? ' día' : ' días')).setColor(hx(c));
-    st.rbar[i].setSize(Math.min(d, 7) * 14 + 2, 4).setFillStyle(c);
+    st.rbar[i].setSize(MMIN(d, 7) * 14 + 2, 4).setFillStyle(c);
   });
   st.pplT.forEach((t) => t.destroy());
   st.pplT = st.ppl.flatMap((p, i) => [
@@ -934,26 +936,26 @@ function hit(st, from, to) {
   if (!c.length) return;
   const p = pick(c);
   p.st = to;
-  if (to == 3) log(st, p.n == 'Tú' ? 'Moriste.' : p.n + ' murió.', '#ff4a4a');
+  if (to == 3) log(st, p.n == 'Tú' ? 'Moriste.' : p.n + ' murió.', REDS);
 }
 
 function apply(st, eff) {
   for (const e of eff.split(' ').filter(Boolean)) {
     const n = +e.slice(1), k = e.slice(1);
-    if (e[0] == 'a') st.a = Math.max(0, st.a + n);
-    else if (e[0] == 'c') st.c = Math.max(0, st.c + n);
+    if (e[0] == 'a') st.a = MMAX(0, st.a + n);
+    else if (e[0] == 'c') st.c = MMAX(0, st.c + n);
     else if (e == 'h') hit(st, 0, 1);
     else if (e == 's') hit(st, 0, 2);
     else if (e == 'x') { hit(st, 1, 0); hit(st, 2, 0); }
     else if (e == 'k') hit(st, -1, 3);
-    else if (e == 'd') { st.a = Math.max(0, st.a - alive(st).length); st.c = Math.max(0, st.c - alive(st).length); }
+    else if (e == 'd') { st.a = MMAX(0, st.a - alive(st).length); st.c = MMAX(0, st.c - alive(st).length); }
     else if (e == 'e') st.eb += 0.05;
     else if (e == 'r') st.won = 1;
     else if (e[0] == '#') st.fl[k] = 1;
     else if (e[0] == '+') ITEMS[k][2] == 'p' ? st.ppl.push(person(ITEMS[k][0], k)) : (st.inv[k] = (st.inv[k] || 0) + 1);
     else if (e[0] == '-') {
       const p = alive(st).find((q) => q.k == k);
-      p ? (p.st = 4) : (st.inv[k] = Math.max(0, (st.inv[k] || 0) - 1));
+      p ? (p.st = 4) : (st.inv[k] = MMAX(0, (st.inv[k] || 0) - 1));
     }
   }
 }
@@ -964,7 +966,7 @@ const usable = (st, opts) => opts.filter((o) => o[1] && has(st, o[1])).length;
 const starts = (e) => /#/.test(e[2] + e[3].map((o) => o[3] + o[5]).join(''));
 const wEv = (st, e) => weight(e[0], st.day) * (1 + 2 * usable(st, e[3])) * (e[4] && e[4][0] == '#' ? 30 : starts(e) ? 3 : 1);
 const wpick = (a, w) => {
-  let r = Math.random() * a.reduce((t, x) => t + w(x), 0);
+  let r = MRND() * a.reduce((t, x) => t + w(x), 0);
   return a.find((x) => (r -= w(x)) <= 0) || a[0];
 };
 
@@ -991,20 +993,20 @@ function nextDay(s) {
   for (const p of alive(st)) {
     if (p.th >= LIM.w || p.hu >= LIM.f) {
       p.st = 3;
-      log(st, (p.n == 'Tú' ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), '#ff4a4a');
+      log(st, (p.n == 'Tú' ? 'Moriste' : p.n + ' murió') + (p.th >= LIM.w ? ' de sed.' : ' de hambre.'), REDS);
     } else (p.th >= LIM.w - 2 ? sed : p.hu >= LIM.f - 3 ? ham : []).push(p.n);
   }
   if (sed.length + ham.length) log(st, [sed.length && 'Sed: ' + sed.join(', '), ham.length && 'Hambre: ' + ham.join(', ')].filter(Boolean).join(' · '), ORS);
   for (const p of alive(st)) {
-    if (p.st == 0 || Math.random() > (p.st == 2 ? 0.12 : 0.06)) continue;
-    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.', '#2ec4a0'); if (Math.random() < 0.3) st.inv.botiquin--; }
+    if (p.st == 0 || MRND() > (p.st == 2 ? 0.12 : 0.06)) continue;
+    if (st.inv.botiquin) { p.st = 0; log(st, 'El botiquín salva a ' + p.n + '.', TEALS); if (MRND() < 0.3) st.inv.botiquin--; }
     else hit(st, p.st, 3);
   }
   const ppl = alive(st);
   if (!ppl.length) return gameOver(s, 'No sobrevivió nadie.');
   const weak = ppl.find((p) => (!p.w && p.th >= LIM.w - 2) || (!p.f && p.hu >= LIM.f - 3));
   if (weak && st.day > st.lastR) return openRation(s, weak.n + (weak.n == 'Tú' ? ' estás' : ' está') + ' muy débil. ¿Le das algo?');
-  if (st.day >= ENDING_DAY && Math.random() < 0.1 + st.eb) {
+  if (st.day >= ENDING_DAY && MRND() < 0.1 + st.eb) {
     const e = wpick(ENDINGS, (x) => 1 + 3 * usable(st, x[1]));
     return openCard(s, e[0], e[1], 'f');
   }
@@ -1061,7 +1063,7 @@ function closeRation(st) {
 
 function openCard(s, text, opts, kind) {
   const st = s.st;
-  st.ev = { opts, t: CHOICE_MS, cur: Math.max(0, opts.findIndex((o) => has(st, o[1]))) };
+  st.ev = { opts, t: CHOICE_MS, cur: MMAX(0, opts.findIndex((o) => has(st, o[1]))) };
   setTag(st, kind);
   st.cardT.setText(text);
   st.card.setVisible(true);
@@ -1082,7 +1084,7 @@ function setTag(st, kind) {
 }
 
 function drawCard(st) {
-  const ev = st.ev, y0 = -20 + Math.max(0, st.cardT.height - 30);
+  const ev = st.ev, y0 = -20 + MMAX(0, st.cardT.height - 30);
   st.optT.forEach((t, i) => {
     const o = ev.opts[i];
     if (!o) return t.setText('');
@@ -1092,7 +1094,7 @@ function drawCard(st) {
   });
   st.sel.setVisible(true).setY(y0 + ev.cur * 40);
   const o = ev.opts[ev.cur];
-  st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? '#999' : ORS);
+  st.hint.setText(has(st, o[1]) ? '↑ ↓ elegir    B1 confirmar' : 'Te falta: ' + names(o[1])).setColor(has(st, o[1]) ? GRAYS : ORS);
 }
 
 function diff(st, b) {
@@ -1106,19 +1108,19 @@ function diff(st, b) {
 
 function choose(s) {
   const st = s.st, o = st.ev.opts[st.ev.cur];
-  if (!has(st, o[1])) return tone(s, 140, 0.2, 'sawtooth', 0.2);
-  const win = Math.random() < o[2], b = { a: st.a, c: st.c, ppl: st.ppl.map((p) => p.st), inv: { ...st.inv } };
+  if (!has(st, o[1])) return tone(s, 140, 0.2, SAW, 0.2);
+  const win = MRND() < o[2], b = { a: st.a, c: st.c, ppl: st.ppl.map((p) => p.st), inv: { ...st.inv } };
   apply(st, win ? o[3] : o[5]);
   const m = win ? o[4] : o[6] || o[4], d = diff(st, b);
   st.optT.forEach((t) => t.setText(''));
   st.sel.setVisible(false);
-  st.optT[0].setText(m).setColor(win ? '#2ec4a0' : '#ff6b4a').setFontSize(20);
+  st.optT[0].setText(m).setColor(win ? TEALS : '#ff6b4a').setFontSize(20);
   st.optT[1].setText(d).setColor(GOLDS).setFontSize(16);
-  st.hint.setText('B1 continuar').setColor('#999');
+  st.hint.setText('B1 continuar').setColor(GRAYS);
   st.bar.width = 0;
-  log(st, '» ' + o[0] + ': ' + m, win ? '#2ec4a0' : '#ff6b4a');
+  log(st, '» ' + o[0] + ': ' + m, win ? TEALS : '#ff6b4a');
   st.ev.out = OUT_MS;
-  win ? [880, 1175].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1)) : tone(s, 110, 0.4, 'sawtooth', 0.2);
+  win ? [880, 1175].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1)) : tone(s, 110, 0.4, SAW, 0.2);
 }
 
 function stepLog(s, dt) {
@@ -1128,7 +1130,7 @@ function stepLog(s, dt) {
     const nm = st.nm;
     if (nm) {
       const h = any('R') - any('L'), v = any('U') - any('D');
-      nm.i = Math.max(0, Math.min(2, nm.i + h));
+      nm.i = MMAX(0, MMIN(2, nm.i + h));
       nm.l[nm.i] = (nm.l[nm.i] + v + 26) % 26;
       if (ok()) nm.i < 2 ? nm.i++ : saveScore(s);
       if (st.nm) drawName(st);
@@ -1158,7 +1160,7 @@ function stepLog(s, dt) {
       }
       if (v || h) { tone(s, 520, 0.05, SQ, 0.08); drawRation(st); stat(st); }
       ev.t -= dt;
-      st.bar.width = 660 * Math.max(0, ev.t / CHOICE_MS);
+      st.bar.width = 660 * MMAX(0, ev.t / CHOICE_MS);
       if (ev.t <= 0 || ok()) closeRation(st);
       return;
     }
@@ -1169,7 +1171,7 @@ function stepLog(s, dt) {
       drawCard(st);
     }
     ev.t -= dt;
-    st.bar.width = 660 * Math.max(0, ev.t / CHOICE_MS);
+    st.bar.width = 660 * MMAX(0, ev.t / CHOICE_MS);
     if (ev.t <= 0) ev.cur = pick(ev.opts.map((o, i) => (has(st, o[1]) ? i : -1)).filter((i) => i >= 0));
     if (ev.t <= 0 || ok()) choose(s);
     return;
@@ -1192,7 +1194,7 @@ function gameOver(s, why) {
   st.optT[0].setText('Días ' + st.day + '   ·   Vivos ' + n + '   ·   Easter eggs ' + st.eggs).setColor(WHT).setY(-30);
   st.optT[1].setText('PUNTAJE  ' + st.score).setColor(GOLDS).setFontSize(26).setY(14);
   st.optT[2].setText('');
-  st.hint.setText('START para volver').setColor('#999');
+  st.hint.setText('START para volver').setColor(GRAYS);
   st.bar.width = 0;
   layoutLog(st);
   if (qualifies(st.P.length, st.score)) {
@@ -1212,13 +1214,13 @@ function saveScore(s) {
   st.nm = null;
   RANK[np] = clean([...RANK[np], row]);
   store().set(RK, RANK).catch(() => {});
-  st.hint.setText('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P   ·   START para volver').setColor('#2ec4a0');
+  st.hint.setText('Quedaste #' + (RANK[np].indexOf(row) + 1) + ' en el ranking ' + np + 'P   ·   START para volver').setColor(TEALS);
   [523, 659, 784, 1047].forEach((f, i) => tone(s, f, 0.15, TRI, 0.15, i * 0.1));
 }
 
 function update(t, dt) {
   const s = this, st = s.st;
-  dt = Math.min(dt, 50);
+  dt = MMIN(dt, 50);
   music(s, st.ph == 'title' || st.ph == 'log' ? 0 : st.ph == 'loot' ? 1 : -1, ...(st.ph == 'loot' ? [0.4 + st.left / 100, st.left < 20 ? 3 : st.left < 40 ? 2 : 1] : [1]));
   if (st.ph == 'title') {
     const any = (c) => ['P1_' + c, 'P2_' + c].some((k) => pressed(s, k));
@@ -1248,7 +1250,7 @@ function update(t, dt) {
       for (const p of st.P) st.dust.explode(20 + 40 * k, p.x, p.y + fy(p.f));
       rumble(s, 0.6, 0.15 + 0.35 * k);
     }
-    st.timer.setText(Math.max(0, Math.ceil(st.left))).setColor(st.left < 10 ? '#ff4a4a' : GOLDS);
+    st.timer.setText(MMAX(0, Math.ceil(st.left))).setColor(st.left < 10 ? REDS : GOLDS);
     if ((st.msgT -= dt) <= 0) st.msg.setText('');
     const inBunker = st.P.every((p) => p.f == 0);
     if (inBunker && st.left < LOOT_S - 1 && (pressed(s, 'START1') || pressed(s, 'START2'))) st.left = 0;
@@ -1291,11 +1293,11 @@ function music(s, k, sp, ly = 2) {
   if (k != MU.k) MU = { k, i: 0, t: c.currentTime + 0.1 };
   if (k < 0) return;
   const [d, mel, bas, ev] = SONGS[k];
-  MU.t = Math.max(MU.t, c.currentTime);
+  MU.t = MMAX(MU.t, c.currentTime);
   while (MU.t < c.currentTime + 0.12) {
     const at = MU.t - c.currentTime, m = mel[MU.i % mel.length], b = bas[(MU.i / ev | 0) % bas.length];
     if (ly > 2) MU.u ??= MU.i;
-    const tr = ly > 2 ? Math.min(8, ((MU.i - MU.u) / 8) | 0) : 0;
+    const tr = ly > 2 ? MMIN(8, ((MU.i - MU.u) / 8) | 0) : 0;
     if (ly > 1 && m != '.') tone(s, hz(m, tr), d * sp * 0.9, TRI, 0.16, at);
     if (MU.i % ev == 0 && b != '.') tone(s, hz(b, tr), d * sp * ev * 0.8, SQ, 0.04, at);
     if (k && MU.i % 2 == 0) tone(s, 3000, 0.02, SQ, 0.02, at);
@@ -1312,7 +1314,7 @@ function rumble(s, d, v) {
   if (!c) return;
   const n = c.createBufferSource(), b = c.createBuffer(1, c.sampleRate * d, c.sampleRate);
   const f = c.createBiquadFilter(), g = c.createGain(), t0 = c.currentTime, ch = b.getChannelData(0);
-  for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+  for (let i = 0; i < ch.length; i++) ch[i] = MRND() * 2 - 1;
   n.buffer = b;
   f.type = 'lowpass';
   f.frequency.value = 140;
